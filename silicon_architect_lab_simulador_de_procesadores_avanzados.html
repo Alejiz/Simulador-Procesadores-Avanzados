@@ -1,0 +1,2240 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SILICON ARCHITECT LAB — Simulador de Procesadores Avanzados</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fuentes: Inter y JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            labBg: '#090d16',
+            labCard: '#111827',
+            labBorder: '#1e293b',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #090d16;
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(6, 182, 212, 0.08) 0%, transparent 42%),
+        radial-gradient(circle at 88% 82%, rgba(16, 185, 129, 0.06) 0%, transparent 42%),
+        linear-gradient(to right, rgba(30, 41, 59, 0.22) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.22) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    /* Sliders personalizados estilo consola de hardware */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #0f172a;
+      height: 8px;
+      border-radius: 999px;
+      border: 1px solid #1e293b;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #06b6d4;
+      border: 2px solid #ecfeff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.65);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #22d3ee;
+    }
+
+    /* Pulso de alerta térmica crítica */
+    @keyframes thermalPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+        border-color: rgba(239, 68, 68, 0.95);
+      }
+      50% {
+        box-shadow: 0 0 18px 3px rgba(239, 68, 68, 0.45);
+        border-color: rgba(252, 165, 165, 1);
+      }
+    }
+    .thermal-alert-pulse {
+      animation: thermalPulse 1.1s infinite ease-in-out;
+    }
+
+    /* Pulso en bloques SVG sobrecalentados */
+    @keyframes dieHotGlow {
+      0%, 100% { opacity: 0.92; }
+      50% { opacity: 0.62; }
+    }
+    .die-hot-block {
+      animation: dieHotGlow 0.95s infinite ease-in-out;
+    }
+
+    /* Scrollbar discreto */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+
+  <!-- ==================== BARRA SUPERIOR COMPACTA ==================== -->
+  <header class="sticky top-0 z-40 bg-[#090d16]/95 backdrop-blur-md border-b border-[#1e293b] shadow-xl">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <!-- Identidad con icono de Microchip -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/50 flex items-center justify-center text-cyan-400 shadow-inner shrink-0">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="5" width="14" height="14" rx="2.5" />
+            <rect x="9" y="9" width="6" height="6" rx="1" class="fill-cyan-400/20" />
+            <path d="M9 1v4M15 1v4M9 19v4M15 19v4M19 9h4M19 15h4M1 9h4M1 15h4" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold tracking-tight text-sm sm:text-lg text-white">
+              SILICON ARCHITECT LAB
+            </span>
+            <span class="hidden md:inline-block px-2 py-0.5 text-[11px] font-mono font-bold rounded-md bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              v3.0 TELEMETRY
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">
+            Simulador de Procesadores Avanzados
+          </p>
+        </div>
+      </div>
+
+      <!-- Selector de Vista Rápido [1] / [2] -->
+      <div class="flex items-center bg-[#111827] p-1 rounded-xl border border-[#1e293b] shadow-inner order-3 lg:order-2 w-full lg:w-auto justify-center">
+        <button id="nav-btn-1" onclick="switchMainView(1)"
+          class="flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-cyan-500 text-slate-950 shadow-md">
+          <span class="font-mono font-extrabold">[1]</span>
+          <span>Taller de Capas del Silicio</span>
+        </button>
+        <button id="nav-btn-2" onclick="switchMainView(2)"
+          class="flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-300 hover:text-white">
+          <span class="font-mono font-extrabold">[2]</span>
+          <span>Laboratorio en Vivo (Pantalla Dividida)</span>
+        </button>
+      </div>
+
+      <!-- Presets Rápidos en 1 Clic -->
+      <div class="relative order-2 lg:order-3">
+        <button id="presets-dropdown-btn" onclick="togglePresetsMenu()"
+          class="px-3.5 py-2 rounded-xl bg-[#111827] hover:bg-slate-800 text-amber-300 border border-amber-500/40 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md active:scale-95">
+          <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Presets Rápidos</span>
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        <!-- Menú Desplegable de Presets -->
+        <div id="presets-menu" class="hidden absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[#111827] border border-[#1e293b] shadow-2xl p-2 z-50 space-y-1.5">
+          <div class="px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+            Cargar Arquitectura en 1 Clic
+          </div>
+
+          <button onclick="applyPreset('classic2005')"
+            class="w-full text-left p-3 rounded-xl hover:bg-slate-800/90 border border-transparent hover:border-amber-500/40 transition-all group">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-amber-300 group-hover:text-amber-200">Chip Clásico (2005 - Alta Frecuencia)</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300">24 mm²</span>
+            </div>
+            <div class="text-xs text-slate-400 mt-1 font-mono">
+              1 P-Core • 0 E • Escalar 1x • Sin OoO • Pred. Estático • 1MB • Sin GPU/NPU • 4.9 GHz
+            </div>
+          </button>
+
+          <button onclick="applyPreset('unbalanced')"
+            class="w-full text-left p-3 rounded-xl hover:bg-slate-800/90 border border-transparent hover:border-red-500/40 transition-all group">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-red-300 group-hover:text-red-200">Chip Desbalanceado (Sin Aceleradores)</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-red-500/15 text-red-300">114 mm²</span>
+            </div>
+            <div class="text-xs text-slate-400 mt-1 font-mono">
+              4 P-Cores • 0 E • Superescalar 2x • OoO ON • Dinámico • 4MB • Sin GPU/NPU • 5.2 GHz
+            </div>
+          </button>
+
+          <button onclick="applyPreset('modernSoc')"
+            class="w-full text-left p-3 rounded-xl hover:bg-slate-800/90 border border-transparent hover:border-emerald-500/40 transition-all group">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-emerald-300 group-hover:text-emerald-200">SoC Híbrido Moderno (Completo)</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">241 mm²</span>
+            </div>
+            <div class="text-xs text-slate-400 mt-1 font-mono">
+              4 P-Cores • 4 E-Cores • Superescalar 4x • OoO ON • Dinámico • 16MB • GPU+SIMD • NPU • 3.6 GHz
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast flotante no intrusivo para avisos de límite de área o preset cargado -->
+  <div id="lab-toast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-[#111827] border border-cyan-500/50 text-cyan-200 text-xs sm:text-sm font-bold shadow-2xl flex items-center gap-2.5 transition-all">
+    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+    <span id="lab-toast-msg">Preset cargado</span>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- VISTA 1: TALLER DE CAPAS DEL SILICIO (CONSTRUCTOR MODULAR)              -->
+  <!-- ======================================================================= -->
+  <main id="view-builder" class="max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-5 flex-1">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- COLUMNA IZQUIERDA: CONTROLES POR CAPAS DE HARDWARE (7 cols) -->
+      <div class="lg:col-span-7 space-y-4">
+
+        <!-- CAPA 1: NÚCLEOS Y PARALELISMO ILP -->
+        <div class="bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded-md font-mono text-xs font-extrabold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">CAPA 1</span>
+              <h2 class="font-extrabold text-white text-sm sm:text-base">Núcleos y Paralelismo de Instrucciones (ILP / TLP)</h2>
+            </div>
+            <span id="layer1-area-tag" class="font-mono text-xs text-slate-400">72 mm²</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- P-Cores -->
+            <div class="p-3.5 rounded-xl bg-[#090d16] border border-slate-800/90 space-y-2">
+              <div class="flex justify-between items-center">
+                <label for="slider-pcores" class="text-xs sm:text-sm font-bold text-slate-200">Núcleos P (Alto Rendimiento)</label>
+                <span class="font-mono text-xs font-extrabold text-cyan-300"><span id="val-pcores">4</span> <span class="text-slate-500">(18 mm² c/u)</span></span>
+              </div>
+              <input id="slider-pcores" type="range" min="1" max="6" step="1" value="4" oninput="onBuilderChange('pCores', parseInt(this.value))" class="w-full" />
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+              </div>
+            </div>
+
+            <!-- E-Cores -->
+            <div class="p-3.5 rounded-xl bg-[#090d16] border border-slate-800/90 space-y-2">
+              <div class="flex justify-between items-center">
+                <label for="slider-ecores" class="text-xs sm:text-sm font-bold text-slate-200">Núcleos E (Eficiencia / Fondo)</label>
+                <span class="font-mono text-xs font-extrabold text-emerald-300"><span id="val-ecores">4</span> <span class="text-slate-500">(6 mm² c/u)</span></span>
+              </div>
+              <input id="slider-ecores" type="range" min="0" max="8" step="1" value="4" oninput="onBuilderChange('eCores', parseInt(this.value))" class="w-full" />
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+            <!-- Ancho Superescalar -->
+            <div class="sm:col-span-7 p-3.5 rounded-xl bg-[#090d16] border border-slate-800/90 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs sm:text-sm font-bold text-slate-200">Ancho Superescalar (Vías / Ciclo)</span>
+                <span id="val-superscalar-area" class="font-mono text-xs text-slate-400">18 mm²</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="onBuilderChange('superscalar', 1)" id="btn-ss-1"
+                  class="py-2 px-2 rounded-lg text-xs font-bold border transition-all bg-[#111827] text-slate-300 border-slate-700">
+                  1 vía (Escalar)
+                </button>
+                <button onclick="onBuilderChange('superscalar', 2)" id="btn-ss-2"
+                  class="py-2 px-2 rounded-lg text-xs font-bold border transition-all bg-[#111827] text-slate-300 border-slate-700">
+                  2 vías (+8 mm²)
+                </button>
+                <button onclick="onBuilderChange('superscalar', 4)" id="btn-ss-4"
+                  class="py-2 px-2 rounded-lg text-xs font-bold border transition-all bg-cyan-500 text-slate-950 border-cyan-400">
+                  4 vías (+18 mm²)
+                </button>
+              </div>
+            </div>
+
+            <!-- Ejecución Fuera de Orden (OoO) -->
+            <div class="sm:col-span-5 p-3.5 rounded-xl bg-[#090d16] border border-slate-800/90 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs sm:text-sm font-bold text-slate-200">Fuera de Orden (OoO)</span>
+                <span class="font-mono text-xs text-slate-400">12 mm²</span>
+              </div>
+              <button onclick="onBuilderChange('ooo', !chipConfig.ooo)" id="btn-ooo-toggle"
+                class="w-full py-2 px-3 rounded-lg text-xs font-extrabold border transition-all flex items-center justify-center gap-2 bg-emerald-500/20 text-emerald-300 border-emerald-500/50">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>ON • Tomasulo + Renombrado</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPA 2 Y CAPA 3 EN PARALELO -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- CAPA 2: PREDICCIÓN DE SALTOS -->
+          <div class="bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/40">CAPA 2</span>
+                <h2 class="font-extrabold text-white text-sm">Predicción de Saltos</h2>
+              </div>
+              <span id="layer2-area-tag" class="font-mono text-xs text-slate-400">10 mm²</span>
+            </div>
+
+            <div class="space-y-2">
+              <button onclick="onBuilderChange('predictor', 'static')" id="btn-pred-static"
+                class="w-full p-3 rounded-xl text-left border transition-all bg-[#090d16] text-slate-300 border-slate-800 flex items-center justify-between">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold">Estática (Básica)</div>
+                  <div class="text-[11px] text-slate-500">Fija en compilación • Alto vaciado</div>
+                </div>
+                <span class="font-mono text-xs text-slate-400">2 mm²</span>
+              </button>
+
+              <button onclick="onBuilderChange('predictor', 'dynamic')" id="btn-pred-dynamic"
+                class="w-full p-3 rounded-xl text-left border transition-all bg-purple-500/20 text-purple-200 border-purple-500/60 flex items-center justify-between">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold">Dinámica (2-bits + BTB)</div>
+                  <div class="text-[11px] text-purple-300/80">Tabla de historia • Aprende bucles</div>
+                </div>
+                <span class="font-mono text-xs font-bold text-purple-300">10 mm²</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CAPA 3: JERARQUÍA DE MEMORIA (CACHÉ L2/L3) -->
+          <div class="bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40">CAPA 3</span>
+                <h2 class="font-extrabold text-white text-sm">Caché L2 / L3</h2>
+              </div>
+              <span id="layer3-area-tag" class="font-mono text-xs text-slate-400">28 mm²</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="onBuilderChange('cacheMB', 1)" id="btn-cache-1"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800">
+                <div class="font-mono text-sm font-extrabold">1 MB</div>
+                <div class="font-mono text-[11px] text-slate-500">4 mm²</div>
+              </button>
+              <button onclick="onBuilderChange('cacheMB', 4)" id="btn-cache-4"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800">
+                <div class="font-mono text-sm font-extrabold">4 MB</div>
+                <div class="font-mono text-[11px] text-slate-500">12 mm²</div>
+              </button>
+              <button onclick="onBuilderChange('cacheMB', 16)" id="btn-cache-16"
+                class="p-2.5 rounded-xl border text-center transition-all bg-amber-500/20 text-amber-200 border-amber-500/60">
+                <div class="font-mono text-sm font-extrabold">16 MB</div>
+                <div class="font-mono text-[11px] text-amber-300">28 mm²</div>
+              </button>
+              <button onclick="onBuilderChange('cacheMB', 32)" id="btn-cache-32"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800">
+                <div class="font-mono text-sm font-extrabold">32 MB</div>
+                <div class="font-mono text-[11px] text-slate-500">48 mm²</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPA 4 Y CAPA 5 -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <!-- CAPA 4: ACELERADORES ESPECIALIZADOS (7 cols) -->
+          <div class="md:col-span-7 bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">CAPA 4</span>
+                <h2 class="font-extrabold text-white text-sm">Aceleradores (DLP / IA)</h2>
+              </div>
+              <span id="layer4-area-tag" class="font-mono text-xs text-slate-400">77 mm²</span>
+            </div>
+
+            <div class="space-y-2.5">
+              <div>
+                <div class="text-xs font-bold text-slate-300 mb-1.5">Unidades Vectoriales SIMD / GPU Integrada</div>
+                <div class="grid grid-cols-3 gap-2">
+                  <button onclick="onBuilderChange('gpuLevel', 'none')" id="btn-gpu-none"
+                    class="p-2 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800">
+                    <div class="text-xs font-bold">Ninguna</div>
+                    <div class="font-mono text-[10px] text-slate-500">0 mm²</div>
+                  </button>
+                  <button onclick="onBuilderChange('gpuLevel', 'simd')" id="btn-gpu-simd"
+                    class="p-2 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800">
+                    <div class="text-xs font-bold">SIMD Básico</div>
+                    <div class="font-mono text-[10px] text-slate-500">20 mm²</div>
+                  </button>
+                  <button onclick="onBuilderChange('gpuLevel', 'gpu')" id="btn-gpu-gpu"
+                    class="p-2 rounded-xl border text-center transition-all bg-cyan-500/20 text-cyan-200 border-cyan-500/60">
+                    <div class="text-xs font-bold">GPU + AVX/NEON</div>
+                    <div class="font-mono text-[10px] text-cyan-300">55 mm²</div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#090d16] border border-slate-800">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold text-white">NPU (Acelerador Neuronal IA)</div>
+                  <div class="text-[11px] text-slate-400">Inferencia matricial ultraeficiente • 22 mm²</div>
+                </div>
+                <button onclick="onBuilderChange('hasNpu', !chipConfig.hasNpu)" id="btn-npu-toggle"
+                  class="px-3.5 py-2 rounded-lg text-xs font-extrabold border transition-all bg-emerald-500/20 text-emerald-300 border-emerald-500/50">
+                  ON
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAPA 5: RELOJ Y VOLTAJE (5 cols) -->
+          <div class="md:col-span-5 bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">CAPA 5</span>
+                  <h2 class="font-extrabold text-white text-sm">Reloj y Voltaje</h2>
+                </div>
+                <span id="val-ghz-badge" class="font-mono text-sm font-extrabold text-cyan-300">3.6 GHz</span>
+              </div>
+
+              <div class="space-y-2">
+                <div class="flex justify-between text-xs text-slate-400">
+                  <span>Frecuencia Base</span>
+                  <span>1.5 – 5.5 GHz</span>
+                </div>
+                <input id="slider-ghz" type="range" min="1.5" max="5.5" step="0.1" value="3.6" oninput="onBuilderChange('ghz', parseFloat(this.value))" class="w-full" />
+                <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                  <span>1.5</span><span>3.0</span><span>4.4 (Límite)</span><span>5.5</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advertencia Muro de Potencia -->
+            <div id="builder-ghz-warning" class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+              ✓ Voltaje óptimo: eficiencia energética equilibrada.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMNA DERECHA: PLANO DEL DADO DE SILICIO Y ÁREA (5 cols) -->
+      <div class="lg:col-span-5 bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4">
+        <!-- Cabecera de Área y Modo Libre -->
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="font-extrabold text-white text-base">Plano del Dado de Silicio (Die Floorplan)</h2>
+            <p class="text-xs text-slate-400">Vista física en tiempo real de tus bloques</p>
+          </div>
+
+          <button onclick="toggleFreeAreaMode()" id="btn-free-area"
+            class="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-[#090d16] text-slate-300 border-slate-700 hover:border-cyan-500/50 flex items-center gap-2">
+            <span id="dot-free-area" class="w-2 h-2 rounded-full bg-slate-500"></span>
+            <span id="lbl-free-area">Modo Libre: OFF</span>
+          </button>
+        </div>
+
+        <!-- Medidor de Área Ocupada (mm²) -->
+        <div id="area-meter-card" class="p-3.5 rounded-xl bg-[#090d16] border border-slate-800 space-y-2 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Área de Silicio Ocupada</span>
+            <span id="die-area-text" class="font-mono text-sm sm:text-base font-extrabold text-cyan-300">241 / 250 mm²</span>
+          </div>
+          <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+            <div id="die-area-bar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300" style="width: 96%"></div>
+          </div>
+        </div>
+
+        <!-- Visualización SVG del Chip en Construcción -->
+        <div class="relative rounded-2xl bg-[#090d16] border border-slate-800 p-3 flex items-center justify-center">
+          <svg id="builder-die-svg" viewBox="0 0 420 340" class="w-full max-w-[440px] h-auto select-none">
+            <!-- Generado dinámicamente por JS -->
+          </svg>
+        </div>
+
+        <!-- Botón Llamativo para Ir al Laboratorio en Vivo -->
+        <button onclick="switchMainView(2)"
+          class="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 font-black text-sm sm:text-base tracking-wide shadow-lg shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+          <span>Probar Procesador en el Laboratorio en Vivo</span>
+          <span class="text-lg">→</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- VISTA 2: LABORATORIO EN VIVO (PANTALLA DIVIDIDA 50% / 50%)              -->
+  <!-- ======================================================================= -->
+  <main id="view-live" class="hidden max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4 flex-1">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- =================================================================== -->
+      <!-- PANEL IZQUIERDO (50%): MINI-JUEGO 3D INTERACTIVO MANIPULABLE        -->
+      <!-- =================================================================== -->
+      <section class="lg:col-span-6 bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-3.5 sm:p-4 shadow-2xl flex flex-col gap-3.5">
+        <!-- Encabezado del Panel Juego -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h2 class="font-extrabold text-white text-sm sm:text-base">Arena 3D Interactiva (Carga en Tiempo Real)</h2>
+          </div>
+          <span class="text-[11px] font-mono text-slate-400">
+            WASD / Ratón para mover • Clic para generar oleada 3D
+          </span>
+        </div>
+
+        <!-- Contenedor del Canvas con HUD Gamer -->
+        <div id="game-canvas-wrapper" class="relative w-full h-[310px] sm:h-[360px] rounded-2xl overflow-hidden border border-slate-700/80 bg-[#050811] shadow-inner">
+          <canvas id="game-canvas" class="block w-full h-full cursor-crosshair"></canvas>
+
+          <!-- HUD Gamer Superior Izquierdo: FPS y Frame Time -->
+          <div class="absolute top-3 left-3 pointer-events-none flex flex-wrap items-center gap-2">
+            <div id="hud-fps-box" class="px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-emerald-500/50 flex items-baseline gap-1.5 shadow-lg">
+              <span id="hud-fps-val" class="font-mono text-xl sm:text-2xl font-black text-emerald-400">60</span>
+              <span class="font-mono text-xs font-bold text-slate-300">FPS</span>
+            </div>
+
+            <div class="px-2.5 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-700/80 font-mono text-xs text-slate-300 shadow-lg">
+              <span>Frame: </span><strong id="hud-frametime-val" class="text-cyan-300">16.6 ms</strong>
+            </div>
+
+            <div id="hud-fluidity-badge" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 backdrop-blur-md border border-emerald-500/50 font-mono text-xs font-extrabold text-emerald-300 shadow-lg">
+              FLUIDO
+            </div>
+          </div>
+
+          <!-- HUD Overlay: Apps en 2do Plano (REC • STREAMING) -->
+          <div id="hud-streaming-badge" class="hidden absolute top-3 right-3 pointer-events-none px-3 py-1.5 rounded-xl bg-rose-950/90 backdrop-blur-md border border-rose-500/60 flex items-center gap-2 shadow-lg">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+            <span class="font-mono text-[11px] font-extrabold text-rose-200">REC • STREAMING + CHAT</span>
+          </div>
+
+          <!-- HUD Overlay: Filtro IA NPU Activo -->
+          <div id="hud-ai-badge" class="hidden absolute bottom-3 left-3 pointer-events-none px-2.5 py-1 rounded-lg bg-cyan-950/85 backdrop-blur-md border border-cyan-400/60 font-mono text-[11px] font-bold text-cyan-300">
+            ⚡ AI VISION FILTER (TENSOR SCAN)
+          </div>
+
+          <!-- Banner Central de Congelamiento por Thermal Throttling -->
+          <div id="hud-throttle-overlay" class="hidden absolute inset-0 pointer-events-none bg-red-950/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+            <div class="px-4 py-2.5 rounded-xl bg-red-950/95 border-2 border-red-500 text-center shadow-2xl thermal-alert-pulse">
+              <div class="font-mono text-xs sm:text-sm font-black text-red-200">⚠️ THERMAL THROTTLING ACTIVO</div>
+              <div class="text-[11px] text-red-300 mt-0.5">Frecuencia recortada por Muro de Potencia (&gt;95°C)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL DE CONTROLES DE CARGA EN VIVO -->
+        <div class="bg-[#090d16] border border-slate-800/90 rounded-2xl p-3.5 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-cyan-300">Controles de Carga en Vivo (Manipula el Escenario)</span>
+            <button onclick="resetWorkload()" class="text-[11px] font-bold text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800/80">
+              Reset Carga
+            </button>
+          </div>
+
+          <!-- Sliders 1 y 2 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Control 1: Objetos 3D y Sombras -->
+            <div class="p-2.5 rounded-xl bg-[#111827] border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-bold text-slate-200">1. Objetos 3D (SIMD/GPU)</span>
+                <span id="lbl-load-objects" class="font-mono font-extrabold text-cyan-300">18 obj</span>
+              </div>
+              <input id="slider-load-objects" type="range" min="5" max="120" step="1" value="18" oninput="onWorkloadChange('objects3D', parseInt(this.value))" class="w-full" />
+              <div class="flex items-center justify-between pt-0.5">
+                <span class="text-[11px] text-slate-400">Sombras y Partículas</span>
+                <button onclick="onWorkloadChange('shadowsParticles', !workload.shadowsParticles)" id="btn-load-shadows"
+                  class="px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold border transition-all bg-cyan-500/20 text-cyan-300 border-cyan-500/40">
+                  ON
+                </button>
+              </div>
+            </div>
+
+            <!-- Control 2: Bots con IA Impredecible -->
+            <div class="p-2.5 rounded-xl bg-[#111827] border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-bold text-slate-200">2. Bots IA (Saltos if/else)</span>
+                <span id="lbl-load-bots" class="font-mono font-extrabold text-purple-300">4 bots</span>
+              </div>
+              <input id="slider-load-bots" type="range" min="0" max="30" step="1" value="4" oninput="onWorkloadChange('erraticBots', parseInt(this.value))" class="w-full" />
+              <div class="text-[11px] text-slate-400">
+                Pone a prueba el Predictor de Saltos
+              </div>
+            </div>
+          </div>
+
+          <!-- Interruptores 3, 4 y 5 -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <!-- Control 3: Texturas Ultra 4K -->
+            <button onclick="onWorkloadChange('textures4K', !workload.textures4K)" id="btn-load-4k"
+              class="p-2.5 rounded-xl border text-left transition-all bg-[#111827] border-slate-800 hover:border-slate-600 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-white">3. Texturas 4K</div>
+                <div class="text-[10px] text-slate-400">Exige Caché L3</div>
+              </div>
+              <span id="badge-load-4k" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400">OFF</span>
+            </button>
+
+            <!-- Control 4: Filtro Visual con IA -->
+            <button onclick="onWorkloadChange('aiFilter', !workload.aiFilter)" id="btn-load-aifilter"
+              class="p-2.5 rounded-xl border text-left transition-all bg-[#111827] border-slate-800 hover:border-slate-600 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-white">4. Filtro IA Vivo</div>
+                <div class="text-[10px] text-slate-400">Exige NPU</div>
+              </div>
+              <span id="badge-load-aifilter" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400">OFF</span>
+            </button>
+
+            <!-- Control 5: Apps en 2do Plano -->
+            <button onclick="onWorkloadChange('bgApps', !workload.bgApps)" id="btn-load-bgapps"
+              class="p-2.5 rounded-xl border text-left transition-all bg-[#111827] border-slate-800 hover:border-slate-600 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-white">5. Apps 2do Plano</div>
+                <div class="text-[10px] text-slate-400">Exige E-Cores</div>
+              </div>
+              <span id="badge-load-bgapps" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400">OFF</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PANEL DERECHO (50%): RADIOGRAFÍA TÉRMICA Y TELEMETRÍA DEL SILICIO   -->
+      <!-- =================================================================== -->
+      <section class="lg:col-span-6 bg-[#111827]/95 border border-[#1e293b] rounded-2xl p-3.5 sm:p-4 shadow-2xl flex flex-col gap-3.5">
+        <!-- Cabecera + Botón Modificar Capas en Caliente -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <h2 class="font-extrabold text-white text-sm sm:text-base">Radiografía Térmica del Dado de Silicio</h2>
+          </div>
+
+          <button onclick="switchMainView(1)"
+            class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center gap-1.5">
+            <span>⚙️ Modificar Capas del Chip (En Caliente)</span>
+          </button>
+        </div>
+
+        <!-- MAPA DE CALOR INTERACTIVO DEL SILICIO + TOOLTIP EN VIVO -->
+        <div class="relative rounded-2xl bg-[#090d16] border border-slate-800 p-3 flex flex-col items-center">
+          <div class="w-full flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 mb-1.5 px-1">
+            <span>Pasa el cursor o toca cualquier bloque para inspeccionar</span>
+            <div class="flex items-center gap-2 font-mono text-[10px]">
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-sky-500 inline-block"></i>Frío</span>
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></i>Óptimo</span>
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block"></i>Alto</span>
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block"></i>Saturado</span>
+            </div>
+          </div>
+
+          <svg id="live-die-svg" viewBox="0 0 460 250" class="w-full max-w-[520px] h-auto select-none">
+            <!-- Generado dinámicamente por JS -->
+          </svg>
+
+          <!-- Tooltip Flotante de Inspección de Bloque -->
+          <div id="die-block-tooltip"
+            class="hidden pointer-events-none absolute bottom-3 left-3 right-3 px-3.5 py-2.5 rounded-xl bg-slate-950/95 backdrop-blur-md border border-cyan-500/60 text-xs text-slate-100 shadow-2xl z-20">
+          </div>
+        </div>
+
+        <!-- 4 MEDIDORES DE TELEMETRÍA EN TIEMPO REAL -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Temperatura -->
+          <div class="p-3 rounded-xl bg-[#090d16] border border-slate-800 flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Temperatura</div>
+            <div id="tel-temp-val" class="font-mono text-xl sm:text-2xl font-black text-emerald-400 mt-0.5">48 °C</div>
+            <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden mt-1.5 border border-slate-800">
+              <div id="tel-temp-bar" class="h-full bg-emerald-500 transition-all duration-200" style="width: 30%"></div>
+            </div>
+          </div>
+
+          <!-- Consumo Watts -->
+          <div class="p-3 rounded-xl bg-[#090d16] border border-slate-800 flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Consumo Energía</div>
+            <div id="tel-watts-val" class="font-mono text-xl sm:text-2xl font-black text-amber-400 mt-0.5">34 W</div>
+            <div id="tel-watts-sub" class="text-[10px] font-mono text-slate-500 mt-1">TDP Nominal</div>
+          </div>
+
+          <!-- IPC Real -->
+          <div class="p-3 rounded-xl bg-[#090d16] border border-slate-800 flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">IPC Real</div>
+            <div id="tel-ipc-val" class="font-mono text-xl sm:text-2xl font-black text-cyan-400 mt-0.5">2.85</div>
+            <div id="tel-ipc-sub" class="text-[10px] font-mono text-slate-500 mt-1">Inst / Ciclo</div>
+          </div>
+
+          <!-- Frecuencia Efectiva -->
+          <div class="p-3 rounded-xl bg-[#090d16] border border-slate-800 flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Reloj Efectivo</div>
+            <div id="tel-ghz-val" class="font-mono text-xl sm:text-2xl font-black text-white mt-0.5">3.60 GHz</div>
+            <div id="tel-ghz-sub" class="text-[10px] font-mono text-emerald-400 mt-1">100% Boost</div>
+          </div>
+        </div>
+
+        <!-- SISTEMA DE ALERTAS DE CUELLO DE BOTELLA Y MUROS (PÍLDORAS DINÁMICAS) -->
+        <div id="alerts-container" class="space-y-2">
+          <!-- Generado dinámicamente por JS -->
+        </div>
+
+        <!-- GRÁFICA DE HISTORIAL EN VIVO (ÚLTIMOS 25 SEGUNDOS) -->
+        <div class="bg-[#090d16] border border-slate-800 rounded-2xl p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5 px-1">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Telemetría Histórica (Últimos 25s)</span>
+            <div class="flex items-center gap-3 font-mono text-[11px] font-bold">
+              <span class="text-emerald-400">● FPS</span>
+              <span class="text-red-400">● Temp (°C)</span>
+              <span class="text-amber-400">● Watts (W)</span>
+            </div>
+          </div>
+          <div class="w-full h-[92px]">
+            <canvas id="telemetry-chart-canvas" class="block w-full h-full"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== LÓGICA DE SIMULACIÓN Y RENDERIZADO ==================== -->
+  <script>
+    // =========================================================================
+    // 1. ESTADO GLOBAL DE ARQUITECTURA, CARGA Y TELEMETRÍA
+    // =========================================================================
+    const MAX_DIE_AREA = 250; // mm² límite estándar
+
+    let freeAreaMode = false;
+    let activeView = 1; // 1 = Builder, 2 = Live Split-Screen
+    let hoveredBlockKey = null;
+
+    // Configuración por defecto: SoC Híbrido Moderno (equilibrado y listo para experimentar)
+    let chipConfig = {
+      pCores: 4,          // 1..6 (18 mm² c/u)
+      eCores: 4,          // 0..8 (6 mm² c/u)
+      superscalar: 4,     // 1, 2, 4 (0, 8, 18 mm²)
+      ooo: true,          // boolean (12 mm²)
+      predictor: 'dynamic', // 'static' (2 mm²) | 'dynamic' (10 mm²)
+      cacheMB: 16,        // 1 (4), 4 (12), 16 (28), 32 (48)
+      gpuLevel: 'gpu',    // 'none' (0), 'simd' (20), 'gpu' (55)
+      hasNpu: true,       // boolean (22 mm²)
+      ghz: 3.6            // 1.5 .. 5.5 GHz
+    };
+
+    // Carga de trabajo manipulable en vivo en el Panel Izquierdo
+    let workload = {
+      objects3D: 18,          // 5 .. 120
+      shadowsParticles: true, // boolean
+      erraticBots: 4,         // 0 .. 30
+      textures4K: false,      // boolean
+      aiFilter: false,        // boolean
+      bgApps: false           // boolean
+    };
+
+    // Estado dinámico instantáneo calculado cada tick
+    let liveMetrics = {
+      fps: 60,
+      frameTimeMs: 16.7,
+      tempC: 46,
+      targetTempC: 46,
+      watts: 32,
+      ipc: 3.1,
+      effectiveGhz: 3.6,
+      throttled: false,
+      pCoreLoads: [25, 22, 20, 18],
+      eCoreLoads: [15, 12, 10, 10],
+      cacheLoad: 25,
+      cacheMissRate: 4,
+      frontEndLoad: 25,
+      branchMissRate: 3,
+      gpuLoad: 28,
+      npuLoad: 0,
+      alerts: []
+    };
+
+    // Historial de últimos 25 segundos (1 muestra cada 0.5s = 50 puntos)
+    const HISTORY_LEN = 50;
+    let telemetryHistory = {
+      fps: Array(HISTORY_LEN).fill(60),
+      temp: Array(HISTORY_LEN).fill(46),
+      watts: Array(HISTORY_LEN).fill(32)
+    };
+
+    // =========================================================================
+    // 2. CÁLCULO DE ÁREA DE SILICIO Y PRESETS RÁPIDOS
+    // =========================================================================
+    function calculateDieArea(cfg) {
+      const pArea = cfg.pCores * 18;
+      const eArea = cfg.eCores * 6;
+      const ssArea = cfg.superscalar === 4 ? 18 : (cfg.superscalar === 2 ? 8 : 0);
+      const oooArea = cfg.ooo ? 12 : 0;
+      const predArea = cfg.predictor === 'dynamic' ? 10 : 2;
+      const cacheMap = { 1: 4, 4: 12, 16: 28, 32: 48 };
+      const cacheArea = cacheMap[cfg.cacheMB] || 4;
+      const gpuMap = { none: 0, simd: 20, gpu: 55 };
+      const gpuArea = gpuMap[cfg.gpuLevel] || 0;
+      const npuArea = cfg.hasNpu ? 22 : 0;
+
+      return {
+        layer1: pArea + eArea + ssArea + oooArea,
+        layer2: predArea,
+        layer3: cacheArea,
+        layer4: gpuArea + npuArea,
+        total: pArea + eArea + ssArea + oooArea + predArea + cacheArea + gpuArea + npuArea
+      };
+    }
+
+    function showToast(msg, isWarning = false) {
+      const toast = document.getElementById('lab-toast');
+      const toastMsg = document.getElementById('lab-toast-msg');
+      toastMsg.textContent = msg;
+      if (isWarning) {
+        toast.className = 'fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-red-950/95 border border-red-500 text-red-100 text-xs sm:text-sm font-bold shadow-2xl flex items-center gap-2.5 transition-all';
+      } else {
+        toast.className = 'fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-[#111827]/95 border border-cyan-500/60 text-cyan-200 text-xs sm:text-sm font-bold shadow-2xl flex items-center gap-2.5 transition-all';
+      }
+      toast.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => toast.classList.add('hidden'), 2800);
+    }
+
+    function togglePresetsMenu() {
+      document.getElementById('presets-menu').classList.toggle('hidden');
+    }
+
+    // Cerrar menú de presets si se hace clic fuera
+    window.addEventListener('click', (e) => {
+      const btn = document.getElementById('presets-dropdown-btn');
+      const menu = document.getElementById('presets-menu');
+      if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function applyPreset(presetKey) {
+      document.getElementById('presets-menu').classList.add('hidden');
+      if (presetKey === 'classic2005') {
+        chipConfig = {
+          pCores: 1, eCores: 0, superscalar: 1, ooo: false,
+          predictor: 'static', cacheMB: 1, gpuLevel: 'none', hasNpu: false, ghz: 4.9
+        };
+        showToast('Preset cargado: Chip Clásico (2005 - Alta Frecuencia)');
+      } else if (presetKey === 'unbalanced') {
+        chipConfig = {
+          pCores: 4, eCores: 0, superscalar: 2, ooo: true,
+          predictor: 'dynamic', cacheMB: 4, gpuLevel: 'none', hasNpu: false, ghz: 5.2
+        };
+        showToast('Preset cargado: Chip Desbalanceado (Sin Aceleradores)');
+      } else if (presetKey === 'modernSoc') {
+        chipConfig = {
+          pCores: 4, eCores: 4, superscalar: 4, ooo: true,
+          predictor: 'dynamic', cacheMB: 16, gpuLevel: 'gpu', hasNpu: true, ghz: 3.6
+        };
+        showToast('Preset cargado: SoC Híbrido Moderno (Completo)');
+      }
+      syncBuilderUI();
+      updateSimulationPhysics(0.25);
+      renderLiveDieSvg();
+    }
+
+    function toggleFreeAreaMode() {
+      freeAreaMode = !freeAreaMode;
+      const btn = document.getElementById('btn-free-area');
+      const dot = document.getElementById('dot-free-area');
+      const lbl = document.getElementById('lbl-free-area');
+      if (freeAreaMode) {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-cyan-500/20 text-cyan-300 border-cyan-500/50 flex items-center gap-2';
+        dot.className = 'w-2 h-2 rounded-full bg-cyan-400';
+        lbl.textContent = 'Modo Libre: ON';
+        showToast('Modo Libre activado: sin límite de 250 mm²');
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-[#090d16] text-slate-300 border-slate-700 hover:border-cyan-500/50 flex items-center gap-2';
+        dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        lbl.textContent = 'Modo Libre: OFF';
+      }
+      syncBuilderUI();
+    }
+
+    function onBuilderChange(key, value) {
+      const candidate = { ...chipConfig, [key]: value };
+      const newArea = calculateDieArea(candidate).total;
+
+      if (!freeAreaMode && newArea > MAX_DIE_AREA) {
+        // Revertir sliders visuales al valor anterior y avisar
+        syncBuilderUI();
+        const meterCard = document.getElementById('area-meter-card');
+        meterCard.classList.add('thermal-alert-pulse');
+        setTimeout(() => meterCard.classList.remove('thermal-alert-pulse'), 1100);
+        showToast(`Límite de ${MAX_DIE_AREA} mm² alcanzado (${newArea} mm²). Reduce otra capa o activa Modo Libre.`, true);
+        return;
+      }
+
+      chipConfig = candidate;
+      syncBuilderUI();
+      updateSimulationPhysics(0.25);
+      renderLiveDieSvg();
+    }
+
+    function syncBuilderUI() {
+      const areas = calculateDieArea(chipConfig);
+
+      // Etiquetas de área por capa
+      document.getElementById('layer1-area-tag').textContent = `${areas.layer1} mm²`;
+      document.getElementById('layer2-area-tag').textContent = `${areas.layer2} mm²`;
+      document.getElementById('layer3-area-tag').textContent = `${areas.layer3} mm²`;
+      document.getElementById('layer4-area-tag').textContent = `${areas.layer4} mm²`;
+
+      // Sliders y valores
+      document.getElementById('slider-pcores').value = chipConfig.pCores;
+      document.getElementById('val-pcores').textContent = chipConfig.pCores;
+
+      document.getElementById('slider-ecores').value = chipConfig.eCores;
+      document.getElementById('val-ecores').textContent = chipConfig.eCores;
+
+      document.getElementById('slider-ghz').value = chipConfig.ghz;
+      document.getElementById('val-ghz-badge').textContent = `${chipConfig.ghz.toFixed(1)} GHz`;
+
+      // Botones Superescalar
+      [1, 2, 4].forEach(w => {
+        const b = document.getElementById(`btn-ss-${w}`);
+        b.className = (chipConfig.superscalar === w)
+          ? 'py-2 px-2 rounded-lg text-xs font-extrabold border transition-all bg-cyan-500 text-slate-950 border-cyan-400'
+          : 'py-2 px-2 rounded-lg text-xs font-bold border transition-all bg-[#111827] text-slate-300 border-slate-700 hover:border-slate-500';
+      });
+      document.getElementById('val-superscalar-area').textContent =
+        chipConfig.superscalar === 4 ? '18 mm²' : (chipConfig.superscalar === 2 ? '8 mm²' : '0 mm²');
+
+      // Botón OoO
+      const btnOoo = document.getElementById('btn-ooo-toggle');
+      if (chipConfig.ooo) {
+        btnOoo.className = 'w-full py-2 px-3 rounded-lg text-xs font-extrabold border transition-all flex items-center justify-center gap-2 bg-emerald-500/20 text-emerald-300 border-emerald-500/50';
+        btnOoo.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>ON • Tomasulo + Renombrado</span>`;
+      } else {
+        btnOoo.className = 'w-full py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-2 bg-[#111827] text-slate-400 border-slate-700';
+        btnOoo.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span><span>OFF • Ejecución En Orden</span>`;
+      }
+
+      // Predictor
+      document.getElementById('btn-pred-static').className = chipConfig.predictor === 'static'
+        ? 'w-full p-3 rounded-xl text-left border transition-all bg-purple-500/20 text-purple-200 border-purple-500/60 flex items-center justify-between'
+        : 'w-full p-3 rounded-xl text-left border transition-all bg-[#090d16] text-slate-300 border-slate-800 flex items-center justify-between';
+
+      document.getElementById('btn-pred-dynamic').className = chipConfig.predictor === 'dynamic'
+        ? 'w-full p-3 rounded-xl text-left border transition-all bg-purple-500/20 text-purple-200 border-purple-500/60 flex items-center justify-between'
+        : 'w-full p-3 rounded-xl text-left border transition-all bg-[#090d16] text-slate-300 border-slate-800 flex items-center justify-between';
+
+      // Caché
+      [1, 4, 16, 32].forEach(mb => {
+        const b = document.getElementById(`btn-cache-${mb}`);
+        b.className = chipConfig.cacheMB === mb
+          ? 'p-2.5 rounded-xl border text-center transition-all bg-amber-500/20 text-amber-200 border-amber-500/60'
+          : 'p-2.5 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800 hover:border-slate-600';
+      });
+
+      // GPU / SIMD
+      ['none', 'simd', 'gpu'].forEach(lvl => {
+        const b = document.getElementById(`btn-gpu-${lvl}`);
+        b.className = chipConfig.gpuLevel === lvl
+          ? 'p-2 rounded-xl border text-center transition-all bg-cyan-500/20 text-cyan-200 border-cyan-500/60'
+          : 'p-2 rounded-xl border text-center transition-all bg-[#090d16] text-slate-300 border-slate-800 hover:border-slate-600';
+      });
+
+      // NPU
+      const btnNpu = document.getElementById('btn-npu-toggle');
+      if (chipConfig.hasNpu) {
+        btnNpu.className = 'px-3.5 py-2 rounded-lg text-xs font-extrabold border transition-all bg-emerald-500/20 text-emerald-300 border-emerald-500/50';
+        btnNpu.textContent = 'ON (22 mm²)';
+      } else {
+        btnNpu.className = 'px-3.5 py-2 rounded-lg text-xs font-bold border transition-all bg-[#111827] text-slate-400 border-slate-700';
+        btnNpu.textContent = 'OFF';
+      }
+
+      // Advertencia GHz
+      const ghzWarn = document.getElementById('builder-ghz-warning');
+      if (chipConfig.ghz > 4.4) {
+        ghzWarn.className = 'p-2.5 rounded-xl bg-red-500/15 border border-red-500/50 text-red-200 text-xs font-bold';
+        ghzWarn.textContent = `🔥 ¡Peligro Muro de Potencia (${chipConfig.ghz.toFixed(1)} GHz)! Alto riesgo de Thermal Throttling.`;
+      } else if (chipConfig.ghz > 3.9) {
+        ghzWarn.className = 'p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-semibold';
+        ghzWarn.textContent = `⚡ Frecuencia alta (${chipConfig.ghz.toFixed(1)} GHz): vigila los Watts bajo carga pesada.`;
+      } else {
+        ghzWarn.className = 'p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold';
+        ghzWarn.textContent = `✓ Voltaje óptimo (${chipConfig.ghz.toFixed(1)} GHz): eficiencia energética equilibrada.`;
+      }
+
+      // Medidor de área
+      const areaText = document.getElementById('die-area-text');
+      const areaBar = document.getElementById('die-area-bar');
+      if (freeAreaMode) {
+        areaText.textContent = `${areas.total} mm² (Sin límite)`;
+        areaText.className = 'font-mono text-sm sm:text-base font-extrabold text-cyan-300';
+        areaBar.style.width = `${Math.min(100, (areas.total / 350) * 100)}%`;
+        areaBar.className = 'h-full bg-gradient-to-r from-cyan-500 to-purple-400 transition-all duration-300';
+      } else {
+        const pct = Math.min(100, (areas.total / MAX_DIE_AREA) * 100);
+        areaText.textContent = `${areas.total} / ${MAX_DIE_AREA} mm²`;
+        areaText.className = pct > 92
+          ? 'font-mono text-sm sm:text-base font-extrabold text-amber-300'
+          : 'font-mono text-sm sm:text-base font-extrabold text-cyan-300';
+        areaBar.style.width = `${pct}%`;
+        areaBar.className = pct > 92
+          ? 'h-full bg-gradient-to-r from-amber-500 to-red-400 transition-all duration-300'
+          : 'h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300';
+      }
+
+      // Renderizar SVG del Taller
+      renderBuilderDieSvg();
+    }
+
+    // =========================================================================
+    // 3. RENDERIZADO SVG DEL DADO DE SILICIO (TALLER Y RADIOGRAFÍA TÉRMICA)
+    // =========================================================================
+    function generateGoldPinsSvg(x, y, w, h) {
+      let pins = '';
+      const step = 14;
+      for (let px = x + 16; px < x + w - 16; px += step) {
+        pins += `<rect x="${px}" y="${y - 6}" width="5" height="6" rx="1" fill="#eab308" opacity="0.85" />`;
+        pins += `<rect x="${px}" y="${y + h}" width="5" height="6" rx="1" fill="#eab308" opacity="0.85" />`;
+      }
+      for (let py = y + 16; py < y + h - 16; py += step) {
+        pins += `<rect x="${x - 6}" y="${py}" width="6" height="5" rx="1" fill="#eab308" opacity="0.85" />`;
+        pins += `<rect x="${x + w}" y="${py}" width="6" height="5" rx="1" fill="#eab308" opacity="0.85" />`;
+      }
+      return pins;
+    }
+
+    function renderBuilderDieSvg() {
+      const svg = document.getElementById('builder-die-svg');
+      const pkgX = 24, pkgY = 18, pkgW = 372, pkgH = 304;
+      const dieX = 46, dieY = 38, dieW = 328, dieH = 264;
+
+      let html = `
+        <!-- Sustrato y pines dorados -->
+        ${generateGoldPinsSvg(pkgX, pkgY, pkgW, pkgH)}
+        <rect x="${pkgX}" y="${pkgY}" width="${pkgW}" height="${pkgH}" rx="18" fill="#0f172a" stroke="#334155" stroke-width="2" />
+        <rect x="${dieX}" y="${dieY}" width="${dieW}" height="${dieH}" rx="12" fill="#060913" stroke="#06b6d4" stroke-width="1.5" stroke-opacity="0.5" />
+      `;
+
+      // 1. Bloque Front-End (Predictor + Superescalar + OoO) arriba
+      const feH = 38;
+      html += `
+        <rect x="${dieX + 10}" y="${dieY + 10}" width="${dieW - 20}" height="${feH}" rx="7"
+          fill="${chipConfig.ooo ? 'rgba(168,85,247,0.22)' : 'rgba(71,85,105,0.25)'}"
+          stroke="${chipConfig.ooo ? '#a855f7' : '#64748b'}" stroke-width="1.5" />
+        <text x="${dieX + dieW / 2}" y="${dieY + 27}" text-anchor="middle" fill="#f8fafc" font-family="JetBrains Mono" font-size="11" font-weight="700">
+          FRONT-END: ${chipConfig.superscalar}x Superescalar • ${chipConfig.ooo ? 'OoO ON' : 'En Orden'} • Pred. ${chipConfig.predictor === 'dynamic' ? '2-Bit' : 'Estático'}
+        </text>
+        <text x="${dieX + dieW / 2}" y="${dieY + 41}" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="9.5">
+          Reloj objetivo: ${chipConfig.ghz.toFixed(1)} GHz
+        </text>
+      `;
+
+      // 2. Fila de P-Cores (1..6)
+      const pTop = dieY + 56;
+      const pH = 54;
+      const pGap = 6;
+      const pTotalW = dieW - 20;
+      const pEachW = (pTotalW - pGap * (chipConfig.pCores - 1)) / chipConfig.pCores;
+      for (let i = 0; i < chipConfig.pCores; i++) {
+        const bx = dieX + 10 + i * (pEachW + pGap);
+        html += `
+          <rect x="${bx}" y="${pTop}" width="${pEachW}" height="${pH}" rx="7"
+            fill="rgba(6,182,212,0.22)" stroke="#06b6d4" stroke-width="1.5" />
+          <text x="${bx + pEachW / 2}" y="${pTop + 25}" text-anchor="middle" fill="#ecfeff" font-family="JetBrains Mono" font-size="11" font-weight="800">
+            P${i + 1}
+          </text>
+          <text x="${bx + pEachW / 2}" y="${pTop + 40}" text-anchor="middle" fill="#67e8f9" font-family="Inter" font-size="9">
+            18mm²
+          </text>
+        `;
+      }
+
+      // 3. Fila de E-Cores (0..8)
+      const eTop = pTop + pH + 8;
+      const eH = 34;
+      if (chipConfig.eCores > 0) {
+        const eGap = 5;
+        const eEachW = (pTotalW - eGap * (chipConfig.eCores - 1)) / chipConfig.eCores;
+        for (let i = 0; i < chipConfig.eCores; i++) {
+          const bx = dieX + 10 + i * (eEachW + eGap);
+          html += `
+            <rect x="${bx}" y="${eTop}" width="${eEachW}" height="${eH}" rx="6"
+              fill="rgba(16,185,129,0.22)" stroke="#10b981" stroke-width="1.4" />
+            <text x="${bx + eEachW / 2}" y="${eTop + 21}" text-anchor="middle" fill="#d1fae5" font-family="JetBrains Mono" font-size="10" font-weight="700">
+              E${i + 1}
+            </text>
+          `;
+        }
+      } else {
+        html += `
+          <rect x="${dieX + 10}" y="${eTop}" width="${pTotalW}" height="${eH}" rx="6"
+            fill="rgba(15,23,42,0.4)" stroke="#1e293b" stroke-dasharray="4 4" />
+          <text x="${dieX + dieW / 2}" y="${eTop + 21}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10.5">
+            Sin Núcleos de Eficiencia (E-Cores)
+          </text>
+        `;
+      }
+
+      // 4. Caché L2/L3 (altura proporcional al tamaño)
+      const cTop = eTop + eH + 8;
+      const cH = chipConfig.cacheMB === 32 ? 44 : (chipConfig.cacheMB === 16 ? 38 : (chipConfig.cacheMB === 4 ? 32 : 26));
+      html += `
+        <rect x="${dieX + 10}" y="${cTop}" width="${pTotalW}" height="${cH}" rx="7"
+          fill="rgba(245,158,11,0.2)" stroke="#f59e0b" stroke-width="1.5" />
+        <text x="${dieX + dieW / 2}" y="${cTop + cH / 2 + 4}" text-anchor="middle" fill="#fef3c7" font-family="JetBrains Mono" font-size="11" font-weight="700">
+          CACHÉ COMPARTIDA L2/L3 • ${chipConfig.cacheMB} MB
+        </text>
+      `;
+
+      // 5. Fila Inferior: GPU/SIMD + NPU
+      const accTop = cTop + cH + 8;
+      const accH = (dieY + dieH - 10) - accTop;
+      const gpuW = Math.round(pTotalW * 0.62);
+      const npuW = pTotalW - gpuW - 8;
+
+      // Bloque GPU/SIMD
+      if (chipConfig.gpuLevel !== 'none') {
+        const gpuLabel = chipConfig.gpuLevel === 'gpu' ? 'GPU + SIMD AVANZADO' : 'UNIDAD SIMD BÁSICA';
+        html += `
+          <rect x="${dieX + 10}" y="${accTop}" width="${gpuW}" height="${accH}" rx="7"
+            fill="rgba(14,165,233,0.22)" stroke="#38bdf8" stroke-width="1.5" />
+          <text x="${dieX + 10 + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#e0f2fe" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            ${gpuLabel}
+          </text>
+        `;
+      } else {
+        html += `
+          <rect x="${dieX + 10}" y="${accTop}" width="${gpuW}" height="${accH}" rx="7"
+            fill="rgba(15,23,42,0.4)" stroke="#1e293b" stroke-dasharray="4 4" />
+          <text x="${dieX + 10 + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">
+            Sin GPU / SIMD
+          </text>
+        `;
+      }
+
+      // Bloque NPU
+      const npuX = dieX + 10 + gpuW + 8;
+      if (chipConfig.hasNpu) {
+        html += `
+          <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="7"
+            fill="rgba(16,185,129,0.24)" stroke="#34d399" stroke-width="1.5" />
+          <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#ecfdf5" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            NPU IA
+          </text>
+        `;
+      } else {
+        html += `
+          <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="7"
+            fill="rgba(15,23,42,0.4)" stroke="#1e293b" stroke-dasharray="4 4" />
+          <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">
+            Sin NPU
+          </text>
+        `;
+      }
+
+      svg.innerHTML = html;
+    }
+
+    // Colores dinámicos para la radiografía térmica en Vista 2
+    function getThermalBlockStyle(loadPct, tempC) {
+      const effectiveHeat = Math.max(loadPct, tempC > 92 ? 95 : 0);
+      if (effectiveHeat >= 78) {
+        return {
+          fill: 'rgba(239, 68, 68, 0.36)',
+          stroke: '#ef4444',
+          text: '#fee2e2',
+          hotClass: 'die-hot-block'
+        };
+      }
+      if (effectiveHeat >= 52) {
+        return {
+          fill: 'rgba(245, 158, 11, 0.28)',
+          stroke: '#f59e0b',
+          text: '#fef3c7',
+          hotClass: ''
+        };
+      }
+      if (effectiveHeat >= 26) {
+        return {
+          fill: 'rgba(16, 185, 129, 0.25)',
+          stroke: '#10b981',
+          text: '#d1fae5',
+          hotClass: ''
+        };
+      }
+      return {
+        fill: 'rgba(14, 165, 233, 0.20)',
+        stroke: '#0ea5e9',
+        text: '#e0f2fe',
+        hotClass: ''
+      };
+    }
+
+    function getTooltipDescription(blockKey) {
+      const m = liveMetrics;
+      if (blockKey.startsWith('pcore-')) {
+        const idx = parseInt(blockKey.split('-')[1], 10);
+        const load = Math.round(m.pCoreLoads[idx] || 0);
+        if (load >= 85 && chipConfig.gpuLevel === 'none' && workload.objects3D > 25) {
+          return `P-Core ${idx + 1} (${load}%): ¡SATURADO! Calculando geometría 3D por falta de GPU/SIMD.`;
+        }
+        if (load >= 85 && !chipConfig.hasNpu && workload.aiFilter) {
+          return `P-Core ${idx + 1} (${load}%): Sobrecargado ejecutando el Filtro IA porque no hay NPU.`;
+        }
+        if (m.throttled) {
+          return `P-Core ${idx + 1} (${load}%): Frenado por Thermal Throttling (${m.effectiveGhz.toFixed(2)} GHz) debido a ${Math.round(m.tempC)}°C.`;
+        }
+        return `P-Core ${idx + 1} (${load}%): Ejecutando lógica principal del juego a ${m.effectiveGhz.toFixed(2)} GHz (IPC ${m.ipc.toFixed(2)}).`;
+      }
+      if (blockKey.startsWith('ecore-')) {
+        const idx = parseInt(blockKey.split('-')[1], 10);
+        const load = Math.round(m.eCoreLoads[idx] || 0);
+        return workload.bgApps
+          ? `E-Core ${idx + 1} (${load}%): Absorbiendo grabación y chat en 2do plano con mínimo consumo energético.`
+          : `E-Core ${idx + 1} (${load}%): En reposo de bajo voltaje esperando tareas en segundo plano.`;
+      }
+      if (blockKey === 'frontend') {
+        const load = Math.round(m.frontEndLoad);
+        return chipConfig.predictor === 'static' && workload.erraticBots > 8
+          ? `Front-End (${load}%): ${Math.round(m.branchMissRate)}% fallos de predicción por bots erráticos → Vaciando pipeline.`
+          : `Front-End (${load}%): Despachando hasta ${chipConfig.superscalar} inst/ciclo (${chipConfig.ooo ? 'Fuera de Orden' : 'En Orden'}).`;
+      }
+      if (blockKey === 'cache') {
+        const load = Math.round(m.cacheLoad);
+        return m.cacheMissRate > 18
+          ? `Caché L2/L3 de ${chipConfig.cacheMB} MB (${load}%): ¡MURO DE MEMORIA! ${Math.round(m.cacheMissRate)}% fallos por texturas 4K.`
+          : `Caché L2/L3 de ${chipConfig.cacheMB} MB (${load}%): Tasa de acierto alta (${100 - Math.round(m.cacheMissRate)}%), datos listos sin esperar a RAM.`;
+      }
+      if (blockKey === 'gpu') {
+        const load = Math.round(m.gpuLoad);
+        return `GPU / SIMD (${load}%): Procesando en paralelo ${workload.objects3D} objetos 3D y partículas mediante instrucciones vectoriales (DLP).`;
+      }
+      if (blockKey === 'npu') {
+        const load = Math.round(m.npuLoad);
+        return workload.aiFilter
+          ? `NPU IA (${load}%): Ejecutando filtro neuronal en tiempo real consumiendo apenas ~5W sin cargar los P-Cores.`
+          : `NPU IA (0%): Acelerador neuronal en reposo (activa "Filtro IA Vivo" para verlo trabajar).`;
+      }
+      return '';
+    }
+
+    function setHoveredBlock(key) {
+      hoveredBlockKey = key;
+      const tip = document.getElementById('die-block-tooltip');
+      if (!key) {
+        tip.classList.add('hidden');
+        return;
+      }
+      tip.textContent = getTooltipDescription(key);
+      tip.classList.remove('hidden');
+    }
+
+    function renderLiveDieSvg() {
+      const svg = document.getElementById('live-die-svg');
+      if (!svg) return;
+      const m = liveMetrics;
+      const pkgX = 22, pkgY = 12, pkgW = 416, pkgH = 226;
+      const dieX = 42, dieY = 26, dieW = 376, dieH = 198;
+
+      const dieBorderColor = m.throttled ? '#ef4444' : '#06b6d4';
+
+      let html = `
+        ${generateGoldPinsSvg(pkgX, pkgY, pkgW, pkgH)}
+        <rect x="${pkgX}" y="${pkgY}" width="${pkgW}" height="${pkgH}" rx="16" fill="#0f172a" stroke="#334155" stroke-width="2" />
+        <rect x="${dieX}" y="${dieY}" width="${dieW}" height="${dieH}" rx="10" fill="#050811" stroke="${dieBorderColor}" stroke-width="1.8" />
+      `;
+
+      const innerW = dieW - 18;
+      const startX = dieX + 9;
+
+      // 1. Front-End
+      const feStyle = getThermalBlockStyle(m.frontEndLoad, m.tempC);
+      html += `
+        <g class="cursor-pointer ${feStyle.hotClass}" onmouseenter="setHoveredBlock('frontend')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('frontend')">
+          <rect x="${startX}" y="${dieY + 8}" width="${innerW}" height="30" rx="6" fill="${feStyle.fill}" stroke="${feStyle.stroke}" stroke-width="1.5" />
+          <text x="${dieX + dieW / 2}" y="${dieY + 27}" text-anchor="middle" fill="${feStyle.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            PREDICTOR + ${chipConfig.superscalar}x ${chipConfig.ooo ? 'OoO' : 'IN-ORDER'} • ${Math.round(m.frontEndLoad)}%
+          </text>
+        </g>
+      `;
+
+      // 2. P-Cores
+      const pTop = dieY + 44;
+      const pH = 44;
+      const pGap = 6;
+      const pEachW = (innerW - pGap * (chipConfig.pCores - 1)) / chipConfig.pCores;
+      for (let i = 0; i < chipConfig.pCores; i++) {
+        const bx = startX + i * (pEachW + pGap);
+        const load = Math.round(m.pCoreLoads[i] || 0);
+        const st = getThermalBlockStyle(load, m.tempC);
+        html += `
+          <g class="cursor-pointer ${st.hotClass}" onmouseenter="setHoveredBlock('pcore-${i}')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('pcore-${i}')">
+            <rect x="${bx}" y="${pTop}" width="${pEachW}" height="${pH}" rx="6" fill="${st.fill}" stroke="${st.stroke}" stroke-width="1.6" />
+            <text x="${bx + pEachW / 2}" y="${pTop + 19}" text-anchor="middle" fill="#ffffff" font-family="JetBrains Mono" font-size="10.5" font-weight="800">P${i + 1}</text>
+            <text x="${bx + pEachW / 2}" y="${pTop + 34}" text-anchor="middle" fill="${st.text}" font-family="JetBrains Mono" font-size="10" font-weight="700">${load}%</text>
+          </g>
+        `;
+      }
+
+      // 3. E-Cores
+      const eTop = pTop + pH + 6;
+      const eH = 28;
+      if (chipConfig.eCores > 0) {
+        const eGap = 5;
+        const eEachW = (innerW - eGap * (chipConfig.eCores - 1)) / chipConfig.eCores;
+        for (let i = 0; i < chipConfig.eCores; i++) {
+          const bx = startX + i * (eEachW + eGap);
+          const load = Math.round(m.eCoreLoads[i] || 0);
+          const st = getThermalBlockStyle(load, m.tempC * 0.85);
+          html += `
+            <g class="cursor-pointer ${st.hotClass}" onmouseenter="setHoveredBlock('ecore-${i}')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('ecore-${i}')">
+              <rect x="${bx}" y="${eTop}" width="${eEachW}" height="${eH}" rx="5" fill="${st.fill}" stroke="${st.stroke}" stroke-width="1.3" />
+              <text x="${bx + eEachW / 2}" y="${eTop + 18}" text-anchor="middle" fill="${st.text}" font-family="JetBrains Mono" font-size="9.5" font-weight="700">E${i + 1}:${load}%</text>
+            </g>
+          `;
+        }
+      } else {
+        html += `
+          <rect x="${startX}" y="${eTop}" width="${innerW}" height="${eH}" rx="5" fill="rgba(15,23,42,0.35)" stroke="#1e293b" stroke-dasharray="4 4" />
+          <text x="${dieX + dieW / 2}" y="${eTop + 18}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">Sin Núcleos E (Tareas en 2do plano van a P-Cores)</text>
+        `;
+      }
+
+      // 4. Caché L2/L3
+      const cTop = eTop + eH + 6;
+      const cH = 30;
+      const cSt = getThermalBlockStyle(m.cacheLoad, m.tempC * 0.85);
+      html += `
+        <g class="cursor-pointer ${cSt.hotClass}" onmouseenter="setHoveredBlock('cache')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('cache')">
+          <rect x="${startX}" y="${cTop}" width="${innerW}" height="${cH}" rx="6" fill="${cSt.fill}" stroke="${cSt.stroke}" stroke-width="1.5" />
+          <text x="${dieX + dieW / 2}" y="${cTop + 19}" text-anchor="middle" fill="${cSt.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            CACHÉ L2/L3 (${chipConfig.cacheMB} MB) • Uso ${Math.round(m.cacheLoad)}% (Miss ${Math.round(m.cacheMissRate)}%)
+          </text>
+        </g>
+      `;
+
+      // 5. Aceleradores Inferiores: GPU/SIMD + NPU
+      const accTop = cTop + cH + 6;
+      const accH = (dieY + dieH - 8) - accTop;
+      const gpuW = Math.round(innerW * 0.62);
+      const npuW = innerW - gpuW - 6;
+
+      if (chipConfig.gpuLevel !== 'none') {
+        const gSt = getThermalBlockStyle(m.gpuLoad, m.tempC * 0.9);
+        const gName = chipConfig.gpuLevel === 'gpu' ? 'GPU + SIMD' : 'SIMD BÁSICO';
+        html += `
+          <g class="cursor-pointer ${gSt.hotClass}" onmouseenter="setHoveredBlock('gpu')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('gpu')">
+            <rect x="${startX}" y="${accTop}" width="${gpuW}" height="${accH}" rx="6" fill="${gSt.fill}" stroke="${gSt.stroke}" stroke-width="1.5" />
+            <text x="${startX + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="${gSt.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+              ${gName} • ${Math.round(m.gpuLoad)}%
+            </text>
+          </g>
+        `;
+      } else {
+        html += `
+          <rect x="${startX}" y="${accTop}" width="${gpuW}" height="${accH}" rx="6" fill="rgba(15,23,42,0.35)" stroke="#1e293b" stroke-dasharray="4 4" />
+          <text x="${startX + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">Sin GPU/SIMD (Silicio vacío)</text>
+        `;
+      }
+
+      const npuX = startX + gpuW + 6;
+      if (chipConfig.hasNpu) {
+        const nSt = getThermalBlockStyle(m.npuLoad, 45);
+        html += `
+          <g class="cursor-pointer" onmouseenter="setHoveredBlock('npu')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('npu')">
+            <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="6" fill="${nSt.fill}" stroke="${nSt.stroke}" stroke-width="1.5" />
+            <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="${nSt.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+              NPU • ${Math.round(m.npuLoad)}%
+            </text>
+          </g>
+        `;
+      } else {
+        html += `
+          <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="6" fill="rgba(15,23,42,0.35)" stroke="#1e293b" stroke-dasharray="4 4" />
+          <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">Sin NPU</text>
+        `;
+      }
+
+      svg.innerHTML = html;
+
+      // Actualizar texto del tooltip si sigue abierto
+      if (hoveredBlockKey) {
+        const tip = document.getElementById('die-block-tooltip');
+        if (!tip.classList.contains('hidden')) {
+          tip.textContent = getTooltipDescription(hoveredBlockKey);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 4. FÍSICA REALISTA DE SIMULACIÓN (ARQUITECTURA VS. CARGA EN VIVO)
+    // =========================================================================
+    function updateSimulationPhysics(dt) {
+      // 1. Demandas de carga según sliders/switches del juego
+      const shadowMult = workload.shadowsParticles ? 1.45 : 1.0;
+      const graphicsDemand = workload.objects3D * 1.35 * shadowMult; // ~7 a ~235 unidades
+      const branchDemand = 10 + workload.erraticBots * 3.2;          // ~10 a ~106 unidades
+      const memoryFootprintMB = (workload.objects3D * 0.14) + (workload.textures4K ? 14.5 : 1.5);
+      const aiDemand = workload.aiFilter ? 68 : 0;
+      const bgDemand = workload.bgApps ? 34 : 0;
+
+      // 2. Fallos de predicción de saltos (Predictor Estático vs Dinámico 2-bits)
+      let branchMissRate = chipConfig.predictor === 'dynamic'
+        ? (2.5 + workload.erraticBots * 0.24)
+        : (11.0 + workload.erraticBots * 1.35);
+      branchMissRate = Math.min(54, branchMissRate);
+
+      // 3. Fallos de Caché L2/L3 (Muro de Memoria)
+      const cacheRatio = memoryFootprintMB / chipConfig.cacheMB;
+      let cacheMissRate = Math.max(2, Math.min(55, (cacheRatio - 0.55) * 26));
+      const cacheLoad = Math.min(100, Math.max(12, cacheRatio * 58));
+
+      // 4. Cálculo de IPC Real (Superescalar + OoO - Penalizaciones de Riesgos)
+      let baseIpc = chipConfig.superscalar === 4 ? 3.15 : (chipConfig.superscalar === 2 ? 1.95 : 0.96);
+      if (chipConfig.ooo) {
+        baseIpc += 0.65;
+      } else {
+        baseIpc -= 0.18;
+      }
+      const branchEfficiency = 1 - (branchMissRate / 100) * (chipConfig.ooo ? 0.55 : 0.95);
+      const memoryEfficiency = 1 - (cacheMissRate / 100) * (chipConfig.ooo ? 0.50 : 0.88);
+      const ipc = Math.max(0.42, baseIpc * branchEfficiency * memoryEfficiency);
+
+      // 5. Enrutamiento de tareas hacia Aceleradores (GPU/SIMD, NPU, E-Cores) o P-Cores
+      let gpuLoad = 0;
+      let pCoreGraphicsLoad = 0;
+      if (chipConfig.gpuLevel === 'gpu') {
+        gpuLoad = Math.min(100, (graphicsDemand / 250) * 100);
+        pCoreGraphicsLoad = graphicsDemand * 0.12;
+      } else if (chipConfig.gpuLevel === 'simd') {
+        gpuLoad = Math.min(100, (graphicsDemand / 120) * 100);
+        pCoreGraphicsLoad = graphicsDemand * 0.48;
+      } else {
+        gpuLoad = 0;
+        pCoreGraphicsLoad = graphicsDemand * 1.15; // Sin SIMD/GPU, los P-Cores sufren mucho
+      }
+
+      let npuLoad = 0;
+      let pCoreAiLoad = 0;
+      if (workload.aiFilter) {
+        if (chipConfig.hasNpu) {
+          npuLoad = 64;
+          pCoreAiLoad = 6;
+        } else {
+          npuLoad = 0;
+          pCoreAiLoad = 78; // Sin NPU, la IA devora ciclos de P-Cores
+        }
+      }
+
+      let eCoreAvgLoad = 0;
+      let pCoreBgLoad = 0;
+      if (workload.bgApps) {
+        if (chipConfig.eCores > 0) {
+          eCoreAvgLoad = Math.min(95, 22 + (bgDemand / chipConfig.eCores) * 2.1);
+          pCoreBgLoad = 4;
+        } else {
+          pCoreBgLoad = 46; // Sin E-Cores, las apps de fondo quitan tiempo a P-Cores
+        }
+      } else if (chipConfig.eCores > 0) {
+        eCoreAvgLoad = 8;
+      }
+
+      // 6. Estrangulamiento Térmico (Muro de Potencia > 95°C)
+      if (liveMetrics.tempC >= 95.5) {
+        liveMetrics.throttled = true;
+      } else if (liveMetrics.tempC <= 88.0) {
+        liveMetrics.throttled = false;
+      }
+
+      const effectiveGhz = liveMetrics.throttled
+        ? Math.min(chipConfig.ghz, 2.25)
+        : chipConfig.ghz;
+
+      // 7. Carga total sobre los P-Cores
+      const totalPCoreWork = pCoreGraphicsLoad + pCoreAiLoad + pCoreBgLoad + branchDemand * 0.55 + 16;
+      const pCoreCapacity = chipConfig.pCores * (effectiveGhz / 3.0) * (ipc / 1.5) * 42;
+      const avgPCoreLoad = Math.min(100, Math.max(8, (totalPCoreWork / pCoreCapacity) * 100));
+
+      const pCoreLoads = Array.from({ length: chipConfig.pCores }, (_, i) => {
+        const jitter = Math.sin(performance.now() * 0.004 + i * 1.7) * 3.5;
+        return Math.min(100, Math.max(5, avgPCoreLoad + jitter - i * 1.5));
+      });
+
+      const eCoreLoads = Array.from({ length: chipConfig.eCores }, (_, i) => {
+        const jitter = Math.cos(performance.now() * 0.003 + i * 2.1) * 3;
+        return Math.min(100, Math.max(4, eCoreAvgLoad + jitter));
+      });
+
+      const frontEndLoad = Math.min(100, Math.max(15, (branchDemand * 0.72) + avgPCoreLoad * 0.35));
+
+      // 8. Consumo Energético (Watts) — escalado no lineal con GHz (Muro de Potencia)
+      const freqFactor = Math.pow(effectiveGhz / 3.0, 2.45);
+      const pWatts = chipConfig.pCores * (6 + (avgPCoreLoad / 100) * 16) * freqFactor;
+      const eWatts = chipConfig.eCores * (1.2 + (eCoreAvgLoad / 100) * 2.8);
+      const gpuWatts = chipConfig.gpuLevel === 'gpu' ? (4 + (gpuLoad / 100) * 16) : (chipConfig.gpuLevel === 'simd' ? 5 : 0);
+      const npuWatts = chipConfig.hasNpu ? (1.5 + (npuLoad / 100) * 4.5) : 0;
+      const cacheWatts = chipConfig.cacheMB * 0.18;
+
+      const totalWatts = Math.round(pWatts + eWatts + gpuWatts + npuWatts + cacheWatts);
+
+      // 9. Temperatura del silicio con inercia térmica realista
+      const targetTempC = Math.min(104, 30 + totalWatts * 0.68);
+      const thermalRate = targetTempC > liveMetrics.tempC ? 0.55 : 0.42;
+      const newTempC = liveMetrics.tempC + (targetTempC - liveMetrics.tempC) * Math.min(1, dt * thermalRate * 2.4);
+
+      // 10. Cálculo final de FPS en el mini-juego
+      const rawThroughput = (chipConfig.pCores * 26 + (chipConfig.gpuLevel === 'gpu' ? 145 : (chipConfig.gpuLevel === 'simd' ? 55 : 0)))
+        * (effectiveGhz / 3.2)
+        * (ipc / 2.2);
+
+      const totalFrameCost = 14 + graphicsDemand * 0.62 + (workload.aiFilter && !chipConfig.hasNpu ? 58 : 0) + (workload.bgApps && chipConfig.eCores === 0 ? 28 : 0);
+      let computedFps = (rawThroughput / totalFrameCost) * 62;
+
+      // Penalización adicional por Muro de Memoria
+      if (cacheMissRate > 16) {
+        computedFps *= Math.max(0.32, 1 - (cacheMissRate - 16) / 65);
+      }
+      // Penalización severa si hay Thermal Throttling
+      if (liveMetrics.throttled) {
+        computedFps *= 0.52;
+      }
+
+      const fps = Math.max(7, Math.min(120, Math.round(computedFps)));
+      const frameTimeMs = (1000 / fps).toFixed(1);
+
+      // 11. Detección de Alertas de Cuello de Botella y Muros
+      const alerts = [];
+      if (liveMetrics.throttled || newTempC >= 95) {
+        alerts.push({
+          type: 'danger',
+          pulse: true,
+          text: `🔥 MURO DE POTENCIA (Thermal Throttling): Temperatura ${Math.round(newTempC)}°C. Frecuencia reducida automáticamente a ${effectiveGhz.toFixed(2)} GHz para evitar daños.`
+        });
+      }
+      if (cacheMissRate >= 18) {
+        alerts.push({
+          type: 'warning',
+          text: `🧱 MURO DE MEMORIA: Caché de ${chipConfig.cacheMB} MB saturada (${Math.round(cacheMissRate)}% fallos). Núcleos esperando datos de RAM.`
+        });
+      }
+      if (branchMissRate >= 18) {
+        alerts.push({
+          type: 'purple',
+          text: `🔀 VACIADO DE PIPELINE: ${workload.erraticBots} bots erráticos provocando ${Math.round(branchMissRate)}% fallos en el predictor estático.`
+        });
+      }
+      if (avgPCoreLoad >= 86 && (chipConfig.gpuLevel === 'none' || (!chipConfig.hasNpu && workload.aiFilter))) {
+        alerts.push({
+          type: 'amber',
+          text: `⚠️ CUELLO DE BOTELLA ESCALAR: P-Cores saturados al ${Math.round(avgPCoreLoad)}% haciendo cálculos gráficos/IA sin aceleradores.`
+        });
+      }
+      if (alerts.length === 0) {
+        alerts.push({
+          type: 'ok',
+          text: `✅ ARQUITECTURA EQUILIBRADA: Paralelismo ILP + TLP + DLP operando con alta eficiencia térmica (${Math.round(newTempC)}°C).`
+        });
+      }
+
+      // Guardar en liveMetrics
+      liveMetrics = {
+        fps,
+        frameTimeMs,
+        tempC: newTempC,
+        targetTempC,
+        watts: totalWatts,
+        ipc,
+        effectiveGhz,
+        throttled: liveMetrics.throttled,
+        pCoreLoads,
+        eCoreLoads,
+        cacheLoad,
+        cacheMissRate,
+        frontEndLoad,
+        branchMissRate,
+        gpuLoad,
+        npuLoad,
+        alerts
+      };
+    }
+
+    function updateTelemetryDOM() {
+      const m = liveMetrics;
+
+      // HUD sobre el Canvas del Juego
+      const fpsVal = document.getElementById('hud-fps-val');
+      const fpsBox = document.getElementById('hud-fps-box');
+      const flBadge = document.getElementById('hud-fluidity-badge');
+      fpsVal.textContent = m.fps;
+      document.getElementById('hud-frametime-val').textContent = `${m.frameTimeMs} ms`;
+
+      if (m.fps >= 55) {
+        fpsVal.className = 'font-mono text-xl sm:text-2xl font-black text-emerald-400';
+        fpsBox.className = 'px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-emerald-500/50 flex items-baseline gap-1.5 shadow-lg';
+        flBadge.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/20 backdrop-blur-md border border-emerald-500/50 font-mono text-xs font-extrabold text-emerald-300 shadow-lg';
+        flBadge.textContent = 'FLUIDO';
+      } else if (m.fps >= 28) {
+        fpsVal.className = 'font-mono text-xl sm:text-2xl font-black text-amber-400';
+        fpsBox.className = 'px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-amber-500/50 flex items-baseline gap-1.5 shadow-lg';
+        flBadge.className = 'px-2.5 py-1.5 rounded-xl bg-amber-500/20 backdrop-blur-md border border-amber-500/50 font-mono text-xs font-extrabold text-amber-300 shadow-lg';
+        flBadge.textContent = 'JUGABLE';
+      } else {
+        fpsVal.className = 'font-mono text-xl sm:text-2xl font-black text-red-400';
+        fpsBox.className = 'px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-red-500/60 flex items-baseline gap-1.5 shadow-lg';
+        flBadge.className = 'px-2.5 py-1.5 rounded-xl bg-red-500/25 backdrop-blur-md border border-red-500/60 font-mono text-xs font-extrabold text-red-200 shadow-lg';
+        flBadge.textContent = m.throttled ? 'CONGELADO' : 'LAG SEVERO';
+      }
+
+      // Overlays de Streaming, IA y Throttling en el Canvas
+      document.getElementById('hud-streaming-badge').classList.toggle('hidden', !workload.bgApps);
+      document.getElementById('hud-ai-badge').classList.toggle('hidden', !workload.aiFilter);
+      document.getElementById('hud-throttle-overlay').classList.toggle('hidden', !m.throttled);
+
+      // Medidores de Telemetría Derecha
+      const tempInt = Math.round(m.tempC);
+      const tempValEl = document.getElementById('tel-temp-val');
+      const tempBarEl = document.getElementById('tel-temp-bar');
+      tempValEl.textContent = `${tempInt} °C`;
+      const tempPct = Math.min(100, Math.max(5, ((m.tempC - 28) / (105 - 28)) * 100));
+      tempBarEl.style.width = `${tempPct}%`;
+
+      if (tempInt >= 92) {
+        tempValEl.className = 'font-mono text-xl sm:text-2xl font-black text-red-400 mt-0.5';
+        tempBarEl.className = 'h-full bg-red-500 transition-all duration-200';
+      } else if (tempInt >= 72) {
+        tempValEl.className = 'font-mono text-xl sm:text-2xl font-black text-amber-400 mt-0.5';
+        tempBarEl.className = 'h-full bg-amber-500 transition-all duration-200';
+      } else {
+        tempValEl.className = 'font-mono text-xl sm:text-2xl font-black text-emerald-400 mt-0.5';
+        tempBarEl.className = 'h-full bg-emerald-500 transition-all duration-200';
+      }
+
+      document.getElementById('tel-watts-val').textContent = `${m.watts} W`;
+      document.getElementById('tel-watts-sub').textContent = m.watts > 95 ? '¡Consumo Crítico!' : 'Potencia Activa';
+
+      document.getElementById('tel-ipc-val').textContent = m.ipc.toFixed(2);
+      document.getElementById('tel-ipc-sub').textContent = `Máx ${chipConfig.superscalar}.00 vías`;
+
+      const ghzEl = document.getElementById('tel-ghz-val');
+      const ghzSub = document.getElementById('tel-ghz-sub');
+      ghzEl.textContent = `${m.effectiveGhz.toFixed(2)} GHz`;
+      if (m.throttled) {
+        ghzEl.className = 'font-mono text-xl sm:text-2xl font-black text-red-400 mt-0.5';
+        ghzSub.className = 'text-[10px] font-mono font-bold text-red-400 mt-1';
+        ghzSub.textContent = `Recortado (Base ${chipConfig.ghz.toFixed(1)})`;
+      } else {
+        ghzEl.className = 'font-mono text-xl sm:text-2xl font-black text-white mt-0.5';
+        ghzSub.className = 'text-[10px] font-mono text-emerald-400 mt-1';
+        ghzSub.textContent = '100% Frecuencia';
+      }
+
+      // Renderizar Píldoras de Alertas
+      const alertsEl = document.getElementById('alerts-container');
+      alertsEl.innerHTML = m.alerts.map(a => {
+        const styles = {
+          danger: 'bg-red-950/80 border-red-500 text-red-100 thermal-alert-pulse',
+          warning: 'bg-amber-950/60 border-amber-500/70 text-amber-100',
+          purple: 'bg-purple-950/60 border-purple-500/70 text-purple-100',
+          amber: 'bg-orange-950/60 border-orange-500/70 text-orange-100',
+          ok: 'bg-emerald-950/45 border-emerald-500/50 text-emerald-200'
+        };
+        return `
+          <div class="px-3.5 py-2.5 rounded-xl border text-xs font-bold leading-snug ${styles[a.type]}">
+            ${a.text}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 5. CONTROLES DE CARGA EN VIVO (PANEL IZQUIERDO)
+    // =========================================================================
+    function onWorkloadChange(key, value) {
+      workload[key] = value;
+      syncWorkloadUI();
+      syncGameEntities();
+      updateSimulationPhysics(0.2);
+      updateTelemetryDOM();
+      renderLiveDieSvg();
+    }
+
+    function resetWorkload() {
+      workload = {
+        objects3D: 18,
+        shadowsParticles: true,
+        erraticBots: 4,
+        textures4K: false,
+        aiFilter: false,
+        bgApps: false
+      };
+      syncWorkloadUI();
+      syncGameEntities();
+      showToast('Carga del escenario restablecida');
+    }
+
+    function syncWorkloadUI() {
+      document.getElementById('slider-load-objects').value = workload.objects3D;
+      document.getElementById('lbl-load-objects').textContent = `${workload.objects3D} obj`;
+
+      const btnSh = document.getElementById('btn-load-shadows');
+      btnSh.textContent = workload.shadowsParticles ? 'ON' : 'OFF';
+      btnSh.className = workload.shadowsParticles
+        ? 'px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold border transition-all bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+        : 'px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold border transition-all bg-slate-800 text-slate-400 border-slate-700';
+
+      document.getElementById('slider-load-bots').value = workload.erraticBots;
+      document.getElementById('lbl-load-bots').textContent = `${workload.erraticBots} bots`;
+
+      const setPillToggle = (btnId, badgeId, active, activeBorder) => {
+        const btn = document.getElementById(btnId);
+        const badge = document.getElementById(badgeId);
+        badge.textContent = active ? 'ON' : 'OFF';
+        btn.className = active
+          ? `p-2.5 rounded-xl border text-left transition-all ${activeBorder} flex items-center justify-between`
+          : 'p-2.5 rounded-xl border text-left transition-all bg-[#111827] border-slate-800 hover:border-slate-600 flex items-center justify-between';
+        badge.className = active
+          ? 'font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-cyan-500 text-slate-950'
+          : 'font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+      };
+
+      setPillToggle('btn-load-4k', 'badge-load-4k', workload.textures4K, 'bg-amber-500/15 border-amber-500/60');
+      setPillToggle('btn-load-aifilter', 'badge-load-aifilter', workload.aiFilter, 'bg-cyan-500/15 border-cyan-500/60');
+      setPillToggle('btn-load-bgapps', 'badge-load-bgapps', workload.bgApps, 'bg-emerald-500/15 border-emerald-500/60');
+    }
+
+    // =========================================================================
+    // 6. MINI-JUEGO 3D INTERACTIVO EN CANVAS HTML5 (CON LAG AUTÉNTICO)
+    // =========================================================================
+    const gameCanvas = document.getElementById('game-canvas');
+    const gameCtx = gameCanvas.getContext('2d');
+
+    let gameWorld = {
+      width: 600,
+      height: 340,
+      gridOffset: 0,
+      ship: { x: 0.5, y: 0.72, vx: 0, vy: 0, trail: [] },
+      keys: {},
+      objects: [],
+      bots: [],
+      particles: []
+    };
+
+    function createPolyObject(customX = null, customY = null) {
+      return {
+        x: customX !== null ? customX : (Math.random() * 1.6 - 0.8),
+        y: customY !== null ? customY : (Math.random() * 0.9 - 0.45),
+        z: customX !== null ? (0.35 + Math.random() * 0.4) : (0.15 + Math.random() * 0.85),
+        vz: -(0.12 + Math.random() * 0.22),
+        size: 16 + Math.random() * 16,
+        rx: Math.random() * Math.PI * 2,
+        ry: Math.random() * Math.PI * 2,
+        vrx: (Math.random() - 0.5) * 2.5,
+        vry: (Math.random() - 0.5) * 2.5,
+        hue: Math.random() > 0.4 ? 190 : 158 // Cian o Esmeralda
+      };
+    }
+
+    function createErraticBot() {
+      return {
+        x: 0.15 + Math.random() * 0.7,
+        y: 0.2 + Math.random() * 0.55,
+        vx: (Math.random() - 0.5) * 0.65,
+        vy: (Math.random() - 0.5) * 0.55,
+        decisionTimer: Math.random() * 0.6,
+        pulse: Math.random() * Math.PI * 2
+      };
+    }
+
+    function syncGameEntities() {
+      // Ajustar cantidad de objetos 3D
+      while (gameWorld.objects.length < workload.objects3D) {
+        gameWorld.objects.push(createPolyObject());
+      }
+      if (gameWorld.objects.length > workload.objects3D) {
+        gameWorld.objects.length = workload.objects3D;
+      }
+
+      // Ajustar cantidad de bots erráticos
+      while (gameWorld.bots.length < workload.erraticBots) {
+        gameWorld.bots.push(createErraticBot());
+      }
+      if (gameWorld.bots.length > workload.erraticBots) {
+        gameWorld.bots.length = workload.erraticBots;
+      }
+    }
+
+    // Eventos de teclado (WASD / Flechas) y ratón/táctil en el Canvas
+    window.addEventListener('keydown', (e) => {
+      gameWorld.keys[e.key.toLowerCase()] = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      gameWorld.keys[e.key.toLowerCase()] = false;
+    });
+
+    function handleCanvasPointerMove(clientX, clientY) {
+      const rect = gameCanvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const nx = Math.max(0.06, Math.min(0.94, (clientX - rect.left) / rect.width));
+      const ny = Math.max(0.15, Math.min(0.92, (clientY - rect.top) / rect.height));
+      gameWorld.ship.x += (nx - gameWorld.ship.x) * 0.35;
+      gameWorld.ship.y += (ny - gameWorld.ship.y) * 0.35;
+    }
+
+    function handleCanvasSpawnWave(clientX, clientY) {
+      const rect = gameCanvas.getBoundingClientRect();
+      const nx = ((clientX - rect.left) / rect.width - 0.5) * 1.4;
+      const ny = ((clientY - rect.top) / rect.height - 0.5) * 0.8;
+
+      // Añadir +6 objetos 3D hasta el máximo de 120
+      const nextCount = Math.min(120, workload.objects3D + 6);
+      workload.objects3D = nextCount;
+      syncWorkloadUI();
+
+      for (let i = 0; i < 6; i++) {
+        if (gameWorld.objects.length < 120) {
+          gameWorld.objects.push(createPolyObject(nx + (Math.random() - 0.5) * 0.25, ny + (Math.random() - 0.5) * 0.2));
+        }
+        // Partículas de explosión energética
+        gameWorld.particles.push({
+          x: (clientX - rect.left),
+          y: (clientY - rect.top),
+          vx: (Math.random() - 0.5) * 180,
+          vy: (Math.random() - 0.5) * 180,
+          life: 0.7
+        });
+      }
+    }
+
+    gameCanvas.addEventListener('mousemove', (e) => handleCanvasPointerMove(e.clientX, e.clientY));
+    gameCanvas.addEventListener('mousedown', (e) => handleCanvasSpawnWave(e.clientX, e.clientY));
+    gameCanvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        handleCanvasPointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+    gameCanvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        handleCanvasSpawnWave(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    // Actualiza la física de la arena 3D
+    function stepGameWorld(dt) {
+      const w = gameWorld.width;
+      const h = gameWorld.height;
+
+      // Movimiento nave con WASD / Flechas
+      const speed = 0.55;
+      if (gameWorld.keys['w'] || gameWorld.keys['arrowup']) gameWorld.ship.y -= speed * dt;
+      if (gameWorld.keys['s'] || gameWorld.keys['arrowdown']) gameWorld.ship.y += speed * dt;
+      if (gameWorld.keys['a'] || gameWorld.keys['arrowleft']) gameWorld.ship.x -= speed * dt;
+      if (gameWorld.keys['d'] || gameWorld.keys['arrowright']) gameWorld.ship.x += speed * dt;
+      gameWorld.ship.x = Math.max(0.06, Math.min(0.94, gameWorld.ship.x));
+      gameWorld.ship.y = Math.max(0.15, Math.min(0.92, gameWorld.ship.y));
+
+      // Estela de la nave
+      if (workload.shadowsParticles) {
+        gameWorld.ship.trail.push({ x: gameWorld.ship.x * w, y: gameWorld.ship.y * h, alpha: 0.9 });
+        if (gameWorld.ship.trail.length > 18) gameWorld.ship.trail.shift();
+      } else {
+        gameWorld.ship.trail = [];
+      }
+      gameWorld.ship.trail.forEach(t => t.alpha *= 0.91);
+
+      // Rejilla de profundidad
+      gameWorld.gridOffset = (gameWorld.gridOffset + dt * 45) % 32;
+
+      // Objetos 3D rotando y acercándose
+      gameWorld.objects.forEach(obj => {
+        obj.rx += obj.vrx * dt;
+        obj.ry += obj.vry * dt;
+        obj.z += obj.vz * dt;
+        if (obj.z <= 0.12) {
+          obj.z = 1.0;
+          obj.x = Math.random() * 1.6 - 0.8;
+          obj.y = Math.random() * 0.85 - 0.42;
+        }
+      });
+
+      // Bots erráticos con cambios bruscos (saltos condicionales if/else)
+      gameWorld.bots.forEach(bot => {
+        bot.decisionTimer -= dt;
+        bot.pulse += dt * 7;
+        if (bot.decisionTimer <= 0) {
+          bot.decisionTimer = 0.18 + Math.random() * 0.45;
+          bot.vx = (Math.random() - 0.5) * 0.95;
+          bot.vy = (Math.random() - 0.5) * 0.85;
+        }
+        bot.x += bot.vx * dt;
+        bot.y += bot.vy * dt;
+        if (bot.x < 0.08 || bot.x > 0.92) bot.vx *= -1;
+        if (bot.y < 0.16 || bot.y > 0.88) bot.vy *= -1;
+      });
+
+      // Partículas
+      for (let i = gameWorld.particles.length - 1; i >= 0; i--) {
+        const p = gameWorld.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt * 1.5;
+        if (p.life <= 0) gameWorld.particles.splice(i, 1);
+      }
+    }
+
+    // Dibuja un cubo/octaedro 3D proyectado con sombreado y textura 4K opcional
+    function drawProjectedPolyhedron(ctx, obj, cx, cy, scaleBase) {
+      const perspective = 1 / (obj.z + 0.35);
+      const sx = cx + obj.x * scaleBase * 0.65 * perspective;
+      const sy = cy + obj.y * scaleBase * 0.55 * perspective;
+      const r = obj.size * perspective;
+
+      // Sombra proyectada en el suelo pseudo-3D
+      if (workload.shadowsParticles) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + r * 1.25, r * 0.95, r * 0.32, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Vértices 3D de un octaedro/cristal rotado
+      const rawVerts = [
+        [0, -1, 0], [1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 0, -1], [0, 1, 0]
+      ];
+      const cosY = Math.cos(obj.ry), sinY = Math.sin(obj.ry);
+      const cosX = Math.cos(obj.rx), sinX = Math.sin(obj.rx);
+
+      const proj = rawVerts.map(([vx, vy, vz]) => {
+        const x1 = vx * cosY - vz * sinY;
+        const z1 = vx * sinY + vz * cosY;
+        const y2 = vy * cosX - z1 * sinX;
+        return [sx + x1 * r, sy + y2 * r];
+      });
+
+      const faces = [
+        [0, 1, 2, 0.34], [0, 2, 3, 0.24], [0, 3, 4, 0.16], [0, 4, 1, 0.28],
+        [5, 2, 1, 0.22], [5, 3, 2, 0.14], [5, 4, 3, 0.10], [5, 1, 4, 0.18]
+      ];
+
+      faces.forEach(([a, b, c, light]) => {
+        ctx.beginPath();
+        ctx.moveTo(proj[a][0], proj[a][1]);
+        ctx.lineTo(proj[b][0], proj[b][1]);
+        ctx.lineTo(proj[c][0], proj[c][1]);
+        ctx.closePath();
+
+        ctx.fillStyle = `hsla(${obj.hue}, 88%, ${Math.round(35 + light * 85)}%, 0.72)`;
+        ctx.fill();
+
+        ctx.strokeStyle = workload.textures4K
+          ? `hsla(${obj.hue}, 100%, 82%, 0.95)`
+          : `hsla(${obj.hue}, 90%, 65%, 0.55)`;
+        ctx.lineWidth = workload.textures4K ? 1.5 : 1;
+        ctx.stroke();
+
+        // Detalle extra de micro-malla cuando Texturas Ultra 4K está activo
+        if (workload.textures4K && r > 10) {
+          const mx = (proj[a][0] + proj[b][0] + proj[c][0]) / 3;
+          const my = (proj[a][1] + proj[b][1] + proj[c][1]) / 3;
+          ctx.beginPath();
+          ctx.moveTo(proj[a][0], proj[a][1]);
+          ctx.lineTo(mx, my);
+          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+          ctx.lineWidth = 0.7;
+          ctx.stroke();
+        }
+      });
+
+      // Cuadro de detección IA cuando el Filtro Visual IA está activo
+      if (workload.aiFilter) {
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.85)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx - r * 1.1, sy - r * 1.1, r * 2.2, r * 2.2);
+      }
+    }
+
+    function renderGameCanvas() {
+      const w = gameWorld.width;
+      const h = gameWorld.height;
+      const ctx = gameCtx;
+
+      // Fondo espacial profundo
+      ctx.fillStyle = '#050811';
+      ctx.fillRect(0, 0, w, h);
+
+      // Rejilla de perspectiva pseudo-3D en el suelo
+      const horizonY = h * 0.34;
+      const cx = w * 0.5;
+      ctx.strokeStyle = workload.aiFilter ? 'rgba(6, 182, 212, 0.28)' : 'rgba(30, 41, 59, 0.65)';
+      ctx.lineWidth = 1;
+
+      // Líneas convergentes hacia el horizonte
+      for (let i = -8; i <= 8; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + i * 22, horizonY);
+        ctx.lineTo(cx + i * 115, h);
+        ctx.stroke();
+      }
+      // Líneas horizontales desplazándose
+      for (let row = 0; row < 8; row++) {
+        const t = ((row * 32 + gameWorld.gridOffset) / 256);
+        const y = horizonY + Math.pow(t, 1.65) * (h - horizonY);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Ordenar objetos 3D de lejos a cerca (algoritmo del pintor)
+      const sortedObjs = [...gameWorld.objects].sort((a, b) => b.z - a.z);
+      sortedObjs.forEach(obj => drawProjectedPolyhedron(ctx, obj, cx, h * 0.48, w));
+
+      // Dibujar Bots Enemigos Erráticos
+      gameWorld.bots.forEach((bot, idx) => {
+        const bx = bot.x * w;
+        const by = bot.y * h;
+        const pulseR = 9 + Math.sin(bot.pulse) * 2.5;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+        ctx.beginPath();
+        ctx.arc(bx, by, pulseR + 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.strokeStyle = '#fecaca';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(bx, by - 9);
+        ctx.lineTo(bx + 9, by);
+        ctx.lineTo(bx, by + 9);
+        ctx.lineTo(bx - 9, by);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        if (workload.aiFilter) {
+          ctx.strokeStyle = '#f59e0b';
+          ctx.strokeRect(bx - 14, by - 14, 28, 28);
+          ctx.fillStyle = '#fde68a';
+          ctx.font = 'bold 9px JetBrains Mono';
+          ctx.fillText(`BOT#${idx + 1}`, bx - 15, by - 17);
+        }
+        ctx.restore();
+      });
+
+      // Estela y Nave del Jugador
+      gameWorld.ship.trail.forEach(tr => {
+        ctx.fillStyle = `rgba(6, 182, 212, ${tr.alpha * 0.35})`;
+        ctx.beginPath();
+        ctx.arc(tr.x, tr.y + 8, 5 * tr.alpha, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      const sx = gameWorld.ship.x * w;
+      const sy = gameWorld.ship.y * h;
+      ctx.save();
+      ctx.fillStyle = '#22d3ee';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 15);
+      ctx.lineTo(sx + 14, sy + 11);
+      ctx.lineTo(sx, sy + 5);
+      ctx.lineTo(sx - 14, sy + 11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Partículas de clic
+      gameWorld.particles.forEach(p => {
+        ctx.fillStyle = `rgba(52, 211, 153, ${Math.max(0, p.life)})`;
+        ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      });
+
+      // Tinte sutil de escaneo si Filtro IA está activo
+      if (workload.aiFilter) {
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.06)';
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    // =========================================================================
+    // 7. GRÁFICA DE TELEMETRÍA HISTÓRICA (ÚLTIMOS 25 SEGUNDOS)
+    // =========================================================================
+    const chartCanvas = document.getElementById('telemetry-chart-canvas');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    function renderTelemetryChart() {
+      const rect = chartCanvas.parentElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      if (chartCanvas.width !== Math.round(rect.width * dpr) || chartCanvas.height !== Math.round(rect.height * dpr)) {
+        chartCanvas.width = Math.round(rect.width * dpr);
+        chartCanvas.height = Math.round(rect.height * dpr);
+      }
+
+      const w = rect.width;
+      const h = rect.height;
+      chartCtx.save();
+      chartCtx.scale(dpr, dpr);
+
+      chartCtx.clearRect(0, 0, w, h);
+
+      // Líneas guía horizontales
+      chartCtx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
+      chartCtx.lineWidth = 1;
+      [0.25, 0.5, 0.75].forEach(ratio => {
+        chartCtx.beginPath();
+        chartCtx.moveTo(0, h * ratio);
+        chartCtx.lineTo(w, h * ratio);
+        chartCtx.stroke();
+      });
+
+      const drawSeries = (arr, maxVal, color) => {
+        chartCtx.beginPath();
+        chartCtx.strokeStyle = color;
+        chartCtx.lineWidth = 2;
+        arr.forEach((val, idx) => {
+          const x = (idx / (HISTORY_LEN - 1)) * w;
+          const norm = Math.max(0, Math.min(1, val / maxVal));
+          const y = h - 6 - norm * (h - 12);
+          if (idx === 0) chartCtx.moveTo(x, y);
+          else chartCtx.lineTo(x, y);
+        });
+        chartCtx.stroke();
+      };
+
+      drawSeries(telemetryHistory.fps, 120, '#10b981');   // FPS (0..120)
+      drawSeries(telemetryHistory.temp, 110, '#ef4444');  // Temp (0..110°C)
+      drawSeries(telemetryHistory.watts, 160, '#f59e0b'); // Watts (0..160W)
+
+      chartCtx.restore();
+    }
+
+    // =========================================================================
+    // 8. CAMBIO DE VISTA Y BUCLE PRINCIPAL DE ANIMACIÓN
+    // =========================================================================
+    function switchMainView(viewNum) {
+      activeView = viewNum;
+      const v1 = document.getElementById('view-builder');
+      const v2 = document.getElementById('view-live');
+      const b1 = document.getElementById('nav-btn-1');
+      const b2 = document.getElementById('nav-btn-2');
+
+      if (viewNum === 1) {
+        v1.classList.remove('hidden');
+        v2.classList.add('hidden');
+        b1.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-cyan-500 text-slate-950 shadow-md';
+        b2.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-300 hover:text-white';
+        syncBuilderUI();
+      } else {
+        v1.classList.add('hidden');
+        v2.classList.remove('hidden');
+        b2.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-cyan-500 text-slate-950 shadow-md';
+        b1.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-300 hover:text-white';
+        resizeGameCanvas();
+        updateSimulationPhysics(0.1);
+        updateTelemetryDOM();
+        renderLiveDieSvg();
+        renderTelemetryChart();
+      }
+    }
+
+    function resizeGameCanvas() {
+      const wrapper = document.getElementById('game-canvas-wrapper');
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const dpr = window.devicePixelRatio || 1;
+      gameCanvas.width = Math.round(rect.width * dpr);
+      gameCanvas.height = Math.round(rect.height * dpr);
+      gameCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gameWorld.width = rect.width;
+      gameWorld.height = rect.height;
+    }
+
+    window.addEventListener('resize', () => {
+      if (activeView === 2) {
+        resizeGameCanvas();
+        renderTelemetryChart();
+      }
+    });
+
+    // Bucle principal: aplica el FPS calculado real al renderizado del canvas del juego
+    let lastTimestamp = 0;
+    let gameRenderAccumulator = 0;
+    let telemetrySampleAccumulator = 0;
+
+    function mainAnimationLoop(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const rawDt = Math.min(0.1, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      if (activeView === 2) {
+        // Actualizar física térmica y de arquitectura
+        updateSimulationPhysics(rawDt);
+
+        // Limitar los fotogramas del canvas del mini-juego al FPS real del procesador simulado
+        const targetFrameInterval = 1 / Math.max(5, liveMetrics.fps);
+        gameRenderAccumulator += rawDt;
+
+        if (gameRenderAccumulator >= targetFrameInterval) {
+          stepGameWorld(gameRenderAccumulator);
+          renderGameCanvas();
+          gameRenderAccumulator = 0;
+        }
+
+        // Actualizar DOM de telemetría y gráfica cada 0.5 segundos (50 puntos = 25s)
+        telemetrySampleAccumulator += rawDt;
+        if (telemetrySampleAccumulator >= 0.5) {
+          telemetrySampleAccumulator = 0;
+          telemetryHistory.fps.push(liveMetrics.fps);
+          telemetryHistory.fps.shift();
+          telemetryHistory.temp.push(liveMetrics.tempC);
+          telemetryHistory.temp.shift();
+          telemetryHistory.watts.push(liveMetrics.watts);
+          telemetryHistory.watts.shift();
+
+          updateTelemetryDOM();
+          renderLiveDieSvg();
+          renderTelemetryChart();
+        }
+      }
+
+      requestAnimationFrame(mainAnimationLoop);
+    }
+
+    // Inicialización al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      syncBuilderUI();
+      syncWorkloadUI();
+      syncGameEntities();
+      updateSimulationPhysics(0.1);
+      requestAnimationFrame(mainAnimationLoop);
+    });
+  </script>
+</body>
+</html>
