@@ -11,14 +11,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
   <script>
-const imgSonicClasico = new Image();
-imgSonicClasico.src = 'sonic-mania.png';
-
-const imgSonicModerno = new Image();
-imgSonicModerno.src = 'sonic-moderno.png';
-
-const imgGreenHill = new Image();
-imgGreenHill.src = 'green-hill.jpg';
     tailwind.config = {
       darkMode: 'class',
       theme: {
@@ -728,6 +720,18 @@ imgGreenHill.src = 'green-hill.jpg';
   <!-- ==================== LÓGICA DE SIMULACIÓN Y RENDERIZADO ==================== -->
   <script>
     // =========================================================================
+    // 0. PRECARGA DE SPRITES LOCALES Y ESCENARIO GREEN HILL
+    // =========================================================================
+    const imgSonicClasico = new Image();
+    imgSonicClasico.src = 'sonic-mania.png';
+
+    const imgSonicModerno = new Image();
+    imgSonicModerno.src = 'sonic-moderno.png';
+
+    const imgGreenHill = new Image();
+    imgGreenHill.src = 'green-hill.jpg';
+
+    // =========================================================================
     // 1. PALETA DE COLORES CERCANOS POR CAPA (AZUL / COBALTO / ÍNDIGO / CIAN)
     // =========================================================================
     const LAYER_COLORS = {
@@ -761,7 +765,7 @@ imgGreenHill.src = 'green-hill.jpg';
     let workload = {
       sonicCount: 6,     // 1 .. 24
       spikeCount: 3,     // 0 .. 16
-      hdMode: false,     // Sonic Mania Pixel (false) vs Sonic Moderno HD (true)
+      hdMode: false,     // Sonic Mania (false) vs Sonic Moderno HD (true)
       greenHillAi: false,// Filtro IA (Green Hill Zone)
       bgApps: false      // Apps 2do Plano (ventanas emergentes "2do plano")
     };
@@ -1404,7 +1408,6 @@ imgGreenHill.src = 'green-hill.jpg';
       const graphicsDemand = workload.sonicCount * 6.8 * hdMult;
       const branchDemand = 12 + workload.spikeCount * 5.8;
       const memoryFootprintMB = (workload.sonicCount * 0.35) + (workload.hdMode ? 14.0 : 1.5) + (workload.greenHillAi ? 3.5 : 0);
-      const aiDemand = workload.greenHillAi ? 70 : 0;
       const bgDemand = workload.bgApps ? 36 : 0;
 
       // Fallos de predicción de saltos (Predictor Estático vs Dinámico 2-bits)
@@ -1706,74 +1709,37 @@ imgGreenHill.src = 'green-hill.jpg';
     }
 
     // =========================================================================
-    // 7. MOTOR GRÁFICO SONIC: MANIA PIXEL-ART, MODERNO HD, PINCHOS, GREEN HILL Y "2DO PLANO"
+    // 7. MOTOR GRÁFICO SONIC: SPRITES LOCALES, PINCHOS, GREEN HILL Y "2DO PLANO"
     // =========================================================================
     const gameCanvas = document.getElementById('game-canvas');
     const gameCtx = gameCanvas.getContext('2d');
 
-    // Buffer offscreen de sprite pixel-art de Sonic Clásico (Sonic Mania 16x18)
-    const maniaSpriteCanvas = document.createElement('canvas');
-    maniaSpriteCanvas.width = 16;
-    maniaSpriteCanvas.height = 18;
-    const maniaCtx = maniaSpriteCanvas.getContext('2d');
-
-    (function buildSonicManiaSprite() {
-      const palette = {
-        '.': null,
-        'B': '#0284c7', // Azul profundo contorno/sombra
-        'S': '#1ea7fd', // Azul cielo vibrante Sonic Mania
-        'L': '#7dd3fc', // Brillo azul claro púas
-        'P': '#fed7aa', // Durazno hocico/barriga/brazos
-        'W': '#ffffff', // Blanco ojos y guantes
-        'K': '#0f172a', // Pupila / nariz negra
-        'R': '#ef4444', // Rojo zapatillas
-        'G': '#facc15'  // Hebilla dorada
-      };
-      const rows = [
-        '....BBBB........',
-        '..BBSSSSBB......',
-        '.BSSLSSSSSB.....',
-        'BBSSSSSSSSBB....',
-        'BSSSSSSWWKSB....',
-        '.BBSSSSWWKSK....',
-        '..BSSSSPPPPB....',
-        '.BBSSSPPPPPB....',
-        'BSSSSBPPPPP.....',
-        '.BB..BPPPPP.....',
-        '....WWBPPPBWW...',
-        '....WWBBBB.WW...',
-        '......B..B......',
-        '......B..B......',
-        '.....WW..WW.....',
-        '....RRRWWWRR....',
-        '...RRRRGRRRRR...',
-        '...BBBBBBBBBB...'
-      ];
-      for (let y = 0; y < rows.length; y++) {
-        for (let x = 0; x < rows[y].length; x++) {
-          const color = palette[rows[y][x]];
-          if (color) {
-            maniaCtx.fillStyle = color;
-            maniaCtx.fillRect(x, y, 1, 1);
-          }
-        }
-      }
-    })();
-
-    // Dibuja a Sonic Moderno en alta definición (HD 3D-shaded)
+    // Dibuja el sprite seleccionado (Sonic Mania vs Sonic Moderno HD) manteniendo su proporción
     function drawSonic(ctx, x, y, vx, isHD) {
-  const sprite = isHD ? imgSonicModerno : imgSonicClasico;
-  const size = isHD ? 54 : 44; // Sonic Moderno un poco más grande para destacar el HD
+      const sprite = isHD ? imgSonicModerno : imgSonicClasico;
+      const drawH = isHD ? 58 : 44;
 
-  ctx.save();
-  ctx.translate(x, y);
-  if (vx < 0) ctx.scale(-1, 1); // Voltea el sprite si va hacia la izquierda
+      ctx.save();
+      ctx.translate(x, y);
+      if (vx < 0) ctx.scale(-1, 1);
+      ctx.imageSmoothingEnabled = isHD;
 
-  if (sprite.complete && sprite.naturalWidth > 0) {
-    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
-  }
-  ctx.restore();
-}
+      if (sprite.complete && sprite.naturalWidth > 0 && sprite.naturalHeight > 0) {
+        const ratio = sprite.naturalWidth / sprite.naturalHeight;
+        const drawW = drawH * ratio;
+        ctx.drawImage(sprite, -drawW / 2, -drawH / 2, drawW, drawH);
+      } else {
+        // Respaldo visual en caso de que la imagen aún esté cargando
+        ctx.fillStyle = isHD ? '#2563eb' : '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(0, 0, drawH * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     // Dibuja una trampa / esfera de pinchos metálicos clásica de Sonic
     function drawSonicSpikeHazard(ctx, x, y, angle) {
@@ -1825,11 +1791,14 @@ imgGreenHill.src = 'green-hill.jpg';
       ctx.restore();
     }
 
-    // Dibuja el escenario detallado de Green Hill Zone cuando Filtro IA está activo
+    // Dibuja el escenario de Green Hill Zone cuando Filtro IA está activo
     function drawGreenHillBackground(ctx, w, h, timeSec) {
       if (imgGreenHill.complete && imgGreenHill.naturalWidth > 0) {
-  ctx.drawImage(imgGreenHill, 0, 0, canvas.width, canvas.height);
-}
+        ctx.drawImage(imgGreenHill, 0, 0, w, h);
+      } else {
+        ctx.fillStyle = '#1d4ed8';
+        ctx.fillRect(0, 0, w, h);
+      }
     }
 
     // Dibuja ventanas emergentes animadas que dicen textualmente "2do plano"
@@ -2074,10 +2043,11 @@ imgGreenHill.src = 'green-hill.jpg';
         drawSonicSpikeHazard(ctx, sp.x * w, sp.y * h, sp.angle);
       });
 
-      // Dibujar Sonics (Mania Pixel-Art vs Moderno HD 3D)
+      // Dibujar Sonics (Sonic Mania vs Sonic Moderno HD)
       sonicArena.sonics.forEach(s => {
         const sx = s.x * w;
         const sy = s.y * h;
+        const bob = Math.sin(s.runPhase * 2) * 2.5;
 
         // Sombra suave bajo cada Sonic
         ctx.fillStyle = workload.greenHillAi ? 'rgba(0, 0, 0, 0.28)' : 'rgba(15, 23, 42, 0.12)';
@@ -2085,20 +2055,7 @@ imgGreenHill.src = 'green-hill.jpg';
         ctx.ellipse(sx, sy + 21, 13, 4, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        if (workload.hdMode) {
-          drawModernSonicHD(ctx, sx, sy, s.dir, s.runPhase, 1.05);
-        } else {
-          // Sprite Pixel-Art de Sonic Mania nítido (sin suavizado)
-          ctx.save();
-          ctx.imageSmoothingEnabled = false;
-          const bob = Math.sin(s.runPhase * 2) * 2.5;
-          ctx.translate(sx, sy + bob);
-          ctx.scale(s.dir, 1);
-          const drawW = 36;
-          const drawH = 40;
-          ctx.drawImage(maniaSpriteCanvas, -drawW / 2, -drawH / 2, drawW, drawH);
-          ctx.restore();
-        }
+        drawSonic(ctx, sx, sy + bob, s.vx, workload.hdMode);
       });
 
       // Dibujar Rings dorados al hacer clic
