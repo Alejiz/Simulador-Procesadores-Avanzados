@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SILICON ARCHITECT LAB — Simulador de Procesadores Avanzados</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fuentes: Inter y JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script>
+const imgSonicClasico = new Image();
+imgSonicClasico.src = 'sonic-mania.png';
+
+const imgSonicModerno = new Image();
+imgSonicModerno.src = 'sonic-moderno.png';
+
+const imgGreenHill = new Image();
+imgGreenHill.src = 'green-hill.jpg';
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Fondo negro puro (#000000) */
+    body {
+      background-color: #000000;
+      color: #f8fafc;
+    }
+
+    /* Sliders estilo consola de hardware en azul claro (#38bdf8) */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #0f131a;
+      height: 8px;
+      border-radius: 999px;
+      border: 1px solid #1c222e;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      background: #38bdf8;
+      border: 2px solid #e0f2fe;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.55);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #7dd3fc;
+    }
+
+    /* Pulso de alerta térmica crítica */
+    @keyframes thermalPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+        border-color: rgba(239, 68, 68, 0.95);
+      }
+      50% {
+        box-shadow: 0 0 18px 3px rgba(239, 68, 68, 0.45);
+        border-color: rgba(252, 165, 165, 1);
+      }
+    }
+    .thermal-alert-pulse {
+      animation: thermalPulse 1.1s infinite ease-in-out;
+    }
+
+    /* Pulso en bloques SVG sobrecalentados */
+    @keyframes dieHotGlow {
+      0%, 100% { opacity: 0.95; }
+      50% { opacity: 0.65; }
+    }
+    .die-hot-block {
+      animation: dieHotGlow 0.95s infinite ease-in-out;
+    }
+
+    /* Scrollbar discreto sobre negro puro */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000000;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1c222e;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2d3748;
+    }
+  </style>
+</head>
+<body class="bg-[#000000] text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-sky-400/30 selection:text-sky-200">
+
+  <!-- ==================== BARRA SUPERIOR COMPACTA ==================== -->
+  <header class="sticky top-0 z-40 bg-[#000000]/95 backdrop-blur-md border-b border-[#1c222e]">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <!-- Identidad con icono de Microchip -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-[#090a0d] border border-[#38bdf8]/40 flex items-center justify-center text-[#38bdf8] shrink-0">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="5" width="14" height="14" rx="2.5" />
+            <rect x="9" y="9" width="6" height="6" rx="1" class="fill-[#38bdf8]/20" />
+            <path d="M9 1v4M15 1v4M9 19v4M15 19v4M19 9h4M19 15h4M1 9h4M1 15h4" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold tracking-tight text-sm sm:text-lg text-white">
+              SILICON ARCHITECT LAB
+            </span>
+            <span class="hidden md:inline-block px-2 py-0.5 text-[11px] font-mono font-bold rounded-md bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/35">
+              TELEMETRÍA EN VIVO
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">
+            Simulador de Procesadores Avanzados
+          </p>
+        </div>
+      </div>
+
+      <!-- Selector de Vista Rápido [1] / [2] en Azul Claro (#38bdf8) -->
+      <div class="flex items-center bg-[#090a0d] p-1 rounded-xl border border-[#1c222e] order-3 lg:order-2 w-full lg:w-auto justify-center">
+        <button id="nav-btn-1" onclick="switchMainView(1)"
+          class="flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-[#38bdf8] text-slate-950 shadow-md">
+          <span class="font-mono font-extrabold">[1]</span>
+          <span>Taller de Capas del Silicio</span>
+        </button>
+        <button id="nav-btn-2" onclick="switchMainView(2)"
+          class="flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-300 hover:text-white">
+          <span class="font-mono font-extrabold">[2]</span>
+          <span>Laboratorio en Vivo</span>
+        </button>
+      </div>
+
+      <!-- Presets Rápidos en 1 Clic -->
+      <div class="relative order-2 lg:order-3">
+        <button id="presets-dropdown-btn" onclick="togglePresetsMenu()"
+          class="px-3.5 py-2 rounded-xl bg-[#090a0d] hover:bg-[#11141c] text-[#38bdf8] border border-[#38bdf8]/40 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all active:scale-95">
+          <svg class="w-4 h-4 text-[#38bdf8] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Presets Rápidos</span>
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        <!-- Menú Desplegable de Presets -->
+        <div id="presets-menu" class="hidden absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[#090a0d] border border-[#1c222e] shadow-2xl p-2 z-50 space-y-1.5">
+          <div class="px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 border-b border-[#1c222e]">
+            Cargar Arquitectura en 1 Clic
+          </div>
+
+          <button onclick="applyPreset('basicSingle')"
+            class="w-full text-left p-3 rounded-xl hover:bg-[#11151f] border border-transparent hover:border-[#38bdf8]/40 transition-all group">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-[#38bdf8]">Chip Básico (1 Núcleo / Alto GHz)</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8]">24 mm²</span>
+            </div>
+            <div class="text-xs text-slate-400 mt-1 font-mono">
+              1 P-Core • 0 E • 1 vía • Sin OoO/SMT • Estático • 1MB • Sin GPU/NPU • 5.0 GHz
+            </div>
+          </button>
+
+          <button onclick="applyPreset('unbalanced')"
+            class="w-full text-left p-3 rounded-xl hover:bg-[#11151f] border border-transparent hover:border-[#6366f1]/40 transition-all group">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-indigo-300">Chip Desbalanceado (Sin Caché ni NPU)</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300">112 mm²</span>
+            </div>
+            <div class="text-xs text-slate-400 mt-1 font-mono">
+              4 P-Cores • 0 E • 2 vías • OoO ON • Dinámico • 1MB • Sin GPU/NPU • 5.1 GHz
+            </div>
+          </button>
+
+          <button onclick="applyPreset('modernSoc')"
+            class="w-full text-left p-3 rounded-xl hover:bg-[#11151f] border border-transparent hover:border-[#38bdf8]/40 transition-all group">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-sky-200">SoC Avanzado Híbrido (Equilibrado)</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8]">247 mm²</span>
+            </div>
+            <div class="text-xs text-slate-400 mt-1 font-mono">
+              4 P-Cores • 4 E-Cores • 4 vías • OoO+SMT • Dinámico • 16MB • GPU+NPU • 3.6 GHz
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast flotante no intrusivo -->
+  <div id="lab-toast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-[#090a0d] border border-[#38bdf8]/60 text-sky-200 text-xs sm:text-sm font-bold shadow-2xl flex items-center gap-2.5 transition-all">
+    <span class="w-2.5 h-2.5 rounded-full bg-[#38bdf8] animate-ping"></span>
+    <span id="lab-toast-msg">Preset cargado</span>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- VISTA 1: TALLER DE CAPAS DEL SILICIO (CONSTRUCTOR MODULAR)              -->
+  <!-- ======================================================================= -->
+  <main id="view-builder" class="max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-5 flex-1">
+    <!-- Encabezado de Sección en Azul Claro (#38bdf8) -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h1 class="text-lg sm:text-xl font-black tracking-tight text-[#38bdf8]">Taller de Capas del Silicio</h1>
+        <p class="text-xs text-slate-400">Configura cada bloque arquitectónico y observa su distribución física en el chip</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- COLUMNA IZQUIERDA: 5 CAPAS EN GAMA AZUL/ÍNDIGO/CIAN CERCANA (7 cols) -->
+      <div class="lg:col-span-7 space-y-4">
+
+        <!-- CAPA 1: NÚCLEOS P/E, SMT, SUPERESCALAR Y FUERA DE ORDEN (#38bdf8 - Light Sky Blue) -->
+        <div class="bg-[#090a0d] border border-[#1c222e] rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-[#1c222e] pb-2.5">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded-md font-mono text-xs font-extrabold bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/45">CAPA 1</span>
+              <h2 class="font-extrabold text-white text-sm sm:text-base">Núcleos P/E, SMT, Superescalar y Fuera de Orden</h2>
+            </div>
+            <span id="layer1-area-tag" class="font-mono text-xs text-[#38bdf8] font-bold">132 mm²</span>
+          </div>
+
+          <!-- Sliders P-Cores y E-Cores -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="p-3.5 rounded-xl bg-[#000000] border border-[#1c222e] space-y-2">
+              <div class="flex justify-between items-center">
+                <label for="slider-pcores" class="text-xs sm:text-sm font-bold text-slate-200">Núcleos P (Alto Rendimiento)</label>
+                <span class="font-mono text-xs font-extrabold text-[#38bdf8]"><span id="val-pcores">4</span> <span class="text-slate-500">(18 mm² c/u)</span></span>
+              </div>
+              <input id="slider-pcores" type="range" min="1" max="6" step="1" value="4" oninput="onBuilderChange('pCores', parseInt(this.value))" class="w-full" />
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-[#000000] border border-[#1c222e] space-y-2">
+              <div class="flex justify-between items-center">
+                <label for="slider-ecores" class="text-xs sm:text-sm font-bold text-slate-200">Núcleos E (Eficiencia / 2do Plano)</label>
+                <span class="font-mono text-xs font-extrabold text-[#38bdf8]"><span id="val-ecores">4</span> <span class="text-slate-500">(6 mm² c/u)</span></span>
+              </div>
+              <input id="slider-ecores" type="range" min="0" max="8" step="1" value="4" oninput="onBuilderChange('eCores', parseInt(this.value))" class="w-full" />
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ancho Superescalar + OoO + SMT Multihilo -->
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch">
+            <!-- Ancho Superescalar -->
+            <div class="sm:col-span-6 p-3.5 rounded-xl bg-[#000000] border border-[#1c222e] space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-200">Ancho Superescalar</span>
+                <span id="val-superscalar-area" class="font-mono text-xs text-slate-400">18 mm²</span>
+              </div>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button onclick="onBuilderChange('superscalar', 1)" id="btn-ss-1"
+                  class="py-2 px-1.5 rounded-lg text-[11px] font-bold border transition-all bg-[#090a0d] text-slate-300 border-[#1c222e]">
+                  1 vía
+                </button>
+                <button onclick="onBuilderChange('superscalar', 2)" id="btn-ss-2"
+                  class="py-2 px-1.5 rounded-lg text-[11px] font-bold border transition-all bg-[#090a0d] text-slate-300 border-[#1c222e]">
+                  2 vías (+8)
+                </button>
+                <button onclick="onBuilderChange('superscalar', 4)" id="btn-ss-4"
+                  class="py-2 px-1.5 rounded-lg text-[11px] font-extrabold border transition-all bg-[#38bdf8] text-slate-950 border-[#38bdf8]">
+                  4 vías (+18)
+                </button>
+              </div>
+            </div>
+
+            <!-- Ejecución Fuera de Orden (OoO) -->
+            <div class="sm:col-span-3 p-3.5 rounded-xl bg-[#000000] border border-[#1c222e] flex flex-col justify-between space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-200">Fuera de Orden</span>
+                <span class="font-mono text-[10px] text-slate-400">12mm²</span>
+              </div>
+              <button onclick="onBuilderChange('ooo', !chipConfig.ooo)" id="btn-ooo-toggle"
+                class="w-full py-2 px-2 rounded-lg text-xs font-extrabold border transition-all bg-[#38bdf8]/20 text-[#38bdf8] border-[#38bdf8]/50">
+                OoO: ON
+              </button>
+            </div>
+
+            <!-- SMT Multihilo -->
+            <div class="sm:col-span-3 p-3.5 rounded-xl bg-[#000000] border border-[#1c222e] flex flex-col justify-between space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-200">SMT Multihilo</span>
+                <span class="font-mono text-[10px] text-slate-400">6mm²</span>
+              </div>
+              <button onclick="onBuilderChange('smt', !chipConfig.smt)" id="btn-smt-toggle"
+                class="w-full py-2 px-2 rounded-lg text-xs font-extrabold border transition-all bg-[#38bdf8]/20 text-[#38bdf8] border-[#38bdf8]/50">
+                SMT: ON
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPA 2 (#3b82f6) Y CAPA 3 (#6366f1) EN PARALELO -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- CAPA 2: PREDICCIÓN DE SALTOS (#3b82f6 - Cobalt / Royal Blue) -->
+          <div class="bg-[#090a0d] border border-[#1c222e] rounded-2xl p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-[#1c222e] pb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-[#3b82f6]/20 text-[#60a5fa] border border-[#3b82f6]/45">CAPA 2</span>
+                <h2 class="font-extrabold text-white text-sm">Predicción de Saltos</h2>
+              </div>
+              <span id="layer2-area-tag" class="font-mono text-xs text-[#60a5fa] font-bold">10 mm²</span>
+            </div>
+
+            <div class="space-y-2">
+              <button onclick="onBuilderChange('predictor', 'static')" id="btn-pred-static"
+                class="w-full p-3 rounded-xl text-left border transition-all bg-[#000000] text-slate-300 border-[#1c222e] flex items-center justify-between">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold">Estática (Básica)</div>
+                  <div class="text-[11px] text-slate-500">Fija en compilación • Mayor vaciado</div>
+                </div>
+                <span class="font-mono text-xs text-slate-400">2 mm²</span>
+              </button>
+
+              <button onclick="onBuilderChange('predictor', 'dynamic')" id="btn-pred-dynamic"
+                class="w-full p-3 rounded-xl text-left border transition-all bg-[#3b82f6]/20 text-blue-200 border-[#3b82f6]/60 flex items-center justify-between">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold">Dinámica (2-bits + BTB)</div>
+                  <div class="text-[11px] text-blue-300/80">Tabla de historia • Anticipa saltos</div>
+                </div>
+                <span class="font-mono text-xs font-bold text-[#60a5fa]">10 mm²</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CAPA 3: MEMORIA CACHÉ L1 / L2 / L3 (#6366f1 - Indigo Blue) -->
+          <div class="bg-[#090a0d] border border-[#1c222e] rounded-2xl p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-[#1c222e] pb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-[#6366f1]/20 text-[#818cf8] border border-[#6366f1]/45">CAPA 3</span>
+                <h2 class="font-extrabold text-white text-sm">Memoria Caché L1 / L2 / L3</h2>
+              </div>
+              <span id="layer3-area-tag" class="font-mono text-xs text-[#818cf8] font-bold">28 mm²</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="onBuilderChange('cacheMB', 1)" id="btn-cache-1"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#000000] text-slate-300 border-[#1c222e]">
+                <div class="font-mono text-sm font-extrabold">1 MB</div>
+                <div class="font-mono text-[11px] text-slate-500">4 mm²</div>
+              </button>
+              <button onclick="onBuilderChange('cacheMB', 4)" id="btn-cache-4"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#000000] text-slate-300 border-[#1c222e]">
+                <div class="font-mono text-sm font-extrabold">4 MB</div>
+                <div class="font-mono text-[11px] text-slate-500">12 mm²</div>
+              </button>
+              <button onclick="onBuilderChange('cacheMB', 16)" id="btn-cache-16"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#6366f1]/20 text-indigo-200 border-[#6366f1]/60">
+                <div class="font-mono text-sm font-extrabold">16 MB</div>
+                <div class="font-mono text-[11px] text-[#818cf8]">28 mm²</div>
+              </button>
+              <button onclick="onBuilderChange('cacheMB', 32)" id="btn-cache-32"
+                class="p-2.5 rounded-xl border text-center transition-all bg-[#000000] text-slate-300 border-[#1c222e]">
+                <div class="font-mono text-sm font-extrabold">32 MB</div>
+                <div class="font-mono text-[11px] text-slate-500">48 mm²</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPA 4 (#8b5cf6) Y CAPA 5 (#06b6d4) -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <!-- CAPA 4: ACELERADORES ESPECIALIZADOS (#8b5cf6 - Periwinkle / Violet-Blue) -->
+          <div class="md:col-span-7 bg-[#090a0d] border border-[#1c222e] rounded-2xl p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-[#1c222e] pb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-[#8b5cf6]/20 text-[#a78bfa] border border-[#8b5cf6]/45">CAPA 4</span>
+                <h2 class="font-extrabold text-white text-sm">Aceleradores Especializados</h2>
+              </div>
+              <span id="layer4-area-tag" class="font-mono text-xs text-[#a78bfa] font-bold">77 mm²</span>
+            </div>
+
+            <div class="space-y-2.5">
+              <!-- GPU + SIMD Vectorial ON/OFF -->
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#000000] border border-[#1c222e]">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold text-white">GPU + SIMD Vectorial</div>
+                  <div class="text-[11px] text-slate-400">Gráficos HD y paralelismo de datos • 45 mm²</div>
+                </div>
+                <button onclick="onBuilderChange('hasGpu', !chipConfig.hasGpu)" id="btn-gpu-toggle"
+                  class="px-3.5 py-2 rounded-lg text-xs font-extrabold border transition-all bg-[#8b5cf6]/25 text-violet-200 border-[#8b5cf6]/60">
+                  ON (45 mm²)
+                </button>
+              </div>
+
+              <!-- NPU IA ON/OFF -->
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#000000] border border-[#1c222e]">
+                <div>
+                  <div class="text-xs sm:text-sm font-bold text-white">NPU (Acelerador Neuronal IA)</div>
+                  <div class="text-[11px] text-slate-400">Inferencia de redes neuronales • 32 mm²</div>
+                </div>
+                <button onclick="onBuilderChange('hasNpu', !chipConfig.hasNpu)" id="btn-npu-toggle"
+                  class="px-3.5 py-2 rounded-lg text-xs font-extrabold border transition-all bg-[#8b5cf6]/25 text-violet-200 border-[#8b5cf6]/60">
+                  ON (32 mm²)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAPA 5: RELOJ Y EFICIENCIA ENERGÉTICA (#06b6d4 - Ice Cyan-Blue) -->
+          <div class="md:col-span-5 bg-[#090a0d] border border-[#1c222e] rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#1c222e] pb-2 mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded-md font-mono text-xs font-extrabold bg-[#06b6d4]/20 text-[#22d3ee] border border-[#06b6d4]/45">CAPA 5</span>
+                  <h2 class="font-extrabold text-white text-sm">Reloj y Eficiencia</h2>
+                </div>
+                <span id="val-ghz-badge" class="font-mono text-sm font-extrabold text-[#22d3ee]">3.6 GHz</span>
+              </div>
+
+              <div class="space-y-2">
+                <div class="flex justify-between text-xs text-slate-400">
+                  <span>Frecuencia de Reloj</span>
+                  <span>1.5 – 5.5 GHz</span>
+                </div>
+                <input id="slider-ghz" type="range" min="1.5" max="5.5" step="0.1" value="3.6" oninput="onBuilderChange('ghz', parseFloat(this.value))" class="w-full" />
+                <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                  <span>1.5</span><span>3.0</span><span>4.4 (Térmico)</span><span>5.5</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Indicador Dinámico de Eficiencia Energética / Calor -->
+            <div id="builder-ghz-warning" class="p-2.5 rounded-xl bg-[#06b6d4]/10 border border-[#06b6d4]/35 text-cyan-200 text-xs font-semibold">
+              ✓ Voltaje equilibrado: alta eficiencia energética.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMNA DERECHA: PLANO DEL DADO DE SILICIO Y ÁREA (5 cols) -->
+      <div class="lg:col-span-5 bg-[#090a0d] border border-[#1c222e] rounded-2xl p-4 sm:p-5 space-y-4">
+        <!-- Cabecera de Área y Modo Libre -->
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1c222e] pb-3">
+          <div>
+            <h2 class="font-extrabold text-white text-base">Plano del Dado de Silicio (Die Floorplan)</h2>
+            <p class="text-xs text-slate-400">Cada bloque conserva el tono azul/índigo de su capa</p>
+          </div>
+
+          <button onclick="toggleFreeAreaMode()" id="btn-free-area"
+            class="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-[#000000] text-slate-300 border-[#1c222e] hover:border-[#38bdf8]/50 flex items-center gap-2">
+            <span id="dot-free-area" class="w-2 h-2 rounded-full bg-slate-500"></span>
+            <span id="lbl-free-area">Modo Libre: OFF</span>
+          </button>
+        </div>
+
+        <!-- Medidor de Área Ocupada (mm²) -->
+        <div id="area-meter-card" class="p-3.5 rounded-xl bg-[#000000] border border-[#1c222e] space-y-2 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Área / Costo de Fabricación</span>
+            <span id="die-area-text" class="font-mono text-sm sm:text-base font-extrabold text-[#38bdf8]">247 / 250 mm²</span>
+          </div>
+          <div class="w-full h-3 bg-[#090a0d] rounded-full overflow-hidden border border-[#1c222e]">
+            <div id="die-area-bar" class="h-full bg-gradient-to-r from-[#38bdf8] via-[#3b82f6] to-[#8b5cf6] transition-all duration-300" style="width: 98%"></div>
+          </div>
+        </div>
+
+        <!-- Visualización SVG del Chip en Construcción -->
+        <div class="relative rounded-2xl bg-[#000000] border border-[#1c222e] p-3 flex items-center justify-center">
+          <svg id="builder-die-svg" viewBox="0 0 420 340" class="w-full max-w-[440px] h-auto select-none">
+            <!-- Generado dinámicamente por JS -->
+          </svg>
+        </div>
+
+        <!-- Botón Llamativo en Azul Claro (#38bdf8) para Ir al Laboratorio en Vivo -->
+        <button onclick="switchMainView(2)"
+          class="w-full py-4 px-5 rounded-2xl bg-[#38bdf8] hover:bg-sky-300 text-slate-950 font-black text-sm sm:text-base tracking-wide shadow-lg shadow-sky-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+          <span>Probar Procesador en el Laboratorio en Vivo</span>
+          <span class="text-lg">→</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- VISTA 2: LABORATORIO EN VIVO                                            -->
+  <!-- ======================================================================= -->
+  <main id="view-live" class="hidden max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4 flex-1">
+    <!-- Encabezado de Sección en Azul Claro (#38bdf8) -->
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h1 class="text-lg sm:text-xl font-black tracking-tight text-[#38bdf8]">Laboratorio en Vivo</h1>
+        <p class="text-xs text-slate-400">Manipula la carga visual en tiempo real y observa la respuesta térmica de cada capa del silicio</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- =================================================================== -->
+      <!-- PANEL IZQUIERDO: ARENA DE CARGA INTERACTIVA SONIC                   -->
+      <!-- =================================================================== -->
+      <section class="lg:col-span-6 bg-[#090a0d] border border-[#1c222e] rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3.5">
+        <!-- Encabezado del Panel Juego -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#38bdf8] animate-pulse"></span>
+            <h2 class="font-extrabold text-white text-sm sm:text-base">Arena Interactiva de Carga (Sonic Benchmark)</h2>
+          </div>
+          <span class="text-[11px] font-mono text-slate-400">
+            Clic en la arena: lluvia de Rings + impulso
+          </span>
+        </div>
+
+        <!-- Contenedor del Canvas con Fondo Blanco por defecto (#ffffff) -->
+        <div id="game-canvas-wrapper" class="relative w-full h-[315px] sm:h-[365px] rounded-2xl overflow-hidden border border-[#1c222e] bg-[#ffffff] shadow-inner">
+          <canvas id="game-canvas" class="block w-full h-full cursor-pointer"></canvas>
+
+          <!-- Píldora Oscura Nítida Superior Izquierda: FPS y Carga Activa -->
+          <div class="absolute top-3 left-3 pointer-events-none flex flex-wrap items-center gap-2">
+            <div id="hud-fps-box" class="px-3 py-1.5 rounded-xl bg-[#090a0d]/92 backdrop-blur-md border border-[#38bdf8]/60 flex items-baseline gap-1.5 shadow-lg">
+              <span id="hud-fps-val" class="font-mono text-xl sm:text-2xl font-black text-[#38bdf8]">60</span>
+              <span class="font-mono text-xs font-bold text-slate-200">FPS</span>
+            </div>
+
+            <div class="px-2.5 py-1.5 rounded-xl bg-[#090a0d]/92 backdrop-blur-md border border-[#1c222e] font-mono text-xs text-slate-200 shadow-lg">
+              <span id="hud-load-summary">6 Sonics • 3 Pinchos</span>
+            </div>
+
+            <div id="hud-fluidity-badge" class="px-2.5 py-1.5 rounded-xl bg-[#090a0d]/92 backdrop-blur-md border border-[#38bdf8]/50 font-mono text-xs font-extrabold text-[#38bdf8] shadow-lg">
+              FLUIDO
+            </div>
+          </div>
+
+          <!-- Etiqueta de Modo Visual (Sonic Mania vs Sonic Moderno HD) -->
+          <div class="absolute top-3 right-3 pointer-events-none px-2.5 py-1 rounded-lg bg-[#090a0d]/90 border border-[#1c222e] font-mono text-[11px] font-bold text-slate-200 shadow">
+            <span id="hud-sonic-mode">SONIC MANIA (PIXEL)</span>
+          </div>
+
+          <!-- Banner Central de Congelamiento por Thermal Throttling -->
+          <div id="hud-throttle-overlay" class="hidden absolute inset-0 pointer-events-none bg-red-950/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+            <div class="px-4 py-2.5 rounded-xl bg-[#090a0d]/95 border-2 border-red-500 text-center shadow-2xl thermal-alert-pulse">
+              <div class="font-mono text-xs sm:text-sm font-black text-red-400">⚠️ THERMAL THROTTLING ACTIVO</div>
+              <div class="text-[11px] text-slate-200 mt-0.5">Frecuencia recortada por Muro de Potencia (&gt;95°C)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL DE CONTROLES DE CARGA EN VIVO -->
+        <div class="bg-[#000000] border border-[#1c222e] rounded-2xl p-3.5 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-[#38bdf8]">Controles de Carga en Vivo</span>
+            <button onclick="resetWorkload()" class="text-[11px] font-bold text-slate-300 hover:text-white px-2.5 py-1 rounded-lg bg-[#090a0d] border border-[#1c222e]">
+              Reset Carga
+            </button>
+          </div>
+
+          <!-- Sliders 1 y 2 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Control 1: Sonics en Escena -->
+            <div class="p-2.5 rounded-xl bg-[#090a0d] border border-[#1c222e] space-y-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-bold text-slate-200">1. Sonics en Escena</span>
+                <span id="lbl-load-sonics" class="font-mono font-extrabold text-[#38bdf8]">6 Sonics</span>
+              </div>
+              <input id="slider-load-sonics" type="range" min="1" max="24" step="1" value="6" oninput="onWorkloadChange('sonicCount', parseInt(this.value))" class="w-full" />
+              <div class="text-[11px] text-slate-400">
+                Multiplica entidades activas en GPU / CPU
+              </div>
+            </div>
+
+            <!-- Control 2: Pinchos / Saltos -->
+            <div class="p-2.5 rounded-xl bg-[#090a0d] border border-[#1c222e] space-y-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-bold text-slate-200">2. Pinchos / Saltos</span>
+                <span id="lbl-load-spikes" class="font-mono font-extrabold text-[#60a5fa]">3 pinchos</span>
+              </div>
+              <input id="slider-load-spikes" type="range" min="0" max="16" step="1" value="3" oninput="onWorkloadChange('spikeCount', parseInt(this.value))" class="w-full" />
+              <div class="text-[11px] text-slate-400">
+                Evasión brusca (exige Predictor de Saltos)
+              </div>
+            </div>
+          </div>
+
+          <!-- Interruptores 3, 4 y 5 -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <!-- Control 3: Texturas HD / 4K (Sonic Clásico -> Sonic Moderno HD) -->
+            <button onclick="onWorkloadChange('hdMode', !workload.hdMode)" id="btn-load-hd"
+              class="p-2.5 rounded-xl border text-left transition-all bg-[#090a0d] border-[#1c222e] hover:border-[#6366f1]/60 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-white">3. Texturas HD / 4K</div>
+                <div class="text-[10px] text-slate-400">Sonic Moderno + Caché</div>
+              </div>
+              <span id="badge-load-hd" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#141923] text-slate-400">OFF</span>
+            </button>
+
+            <!-- Control 4: Filtro IA (Green Hill) con acento visual Green Hill -->
+            <button onclick="onWorkloadChange('greenHillAi', !workload.greenHillAi)" id="btn-load-greenhill"
+              class="relative overflow-hidden p-2.5 rounded-xl border text-left transition-all bg-[#090a0d] border-[#1c222e] hover:border-[#38bdf8]/60 flex items-center justify-between">
+              <!-- Franja decorativa sutil estilo Green Hill (cielo azul + césped + cuadros) -->
+              <span class="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-blue-600 via-emerald-500 to-amber-700"></span>
+              <div class="pl-1.5">
+                <div class="text-xs font-bold text-white">4. Filtro IA (Green Hill)</div>
+                <div class="text-[10px] text-slate-400">Escenario + NPU</div>
+              </div>
+              <span id="badge-load-greenhill" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#141923] text-slate-400">OFF</span>
+            </button>
+
+            <!-- Control 5: Apps 2do Plano (Ventanas emergentes "2do plano") -->
+            <button onclick="onWorkloadChange('bgApps', !workload.bgApps)" id="btn-load-bgapps"
+              class="p-2.5 rounded-xl border text-left transition-all bg-[#090a0d] border-[#1c222e] hover:border-[#38bdf8]/60 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-white">5. Apps 2do Plano</div>
+                <div class="text-[10px] text-slate-400">Ventanas "2do plano"</div>
+              </div>
+              <span id="badge-load-bgapps" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#141923] text-slate-400">OFF</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PANEL DERECHO: RADIOGRAFÍA TÉRMICA Y TELEMETRÍA DEL SILICIO         -->
+      <!-- =================================================================== -->
+      <section class="lg:col-span-6 bg-[#090a0d] border border-[#1c222e] rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3.5">
+        <!-- Cabecera + Botón Regresar al Taller en Azul Claro (#38bdf8) -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#38bdf8]"></span>
+            <h2 class="font-extrabold text-white text-sm sm:text-base">Radiografía Térmica del Dado de Silicio</h2>
+          </div>
+
+          <button onclick="switchMainView(1)"
+            class="px-3.5 py-2 rounded-xl bg-[#38bdf8] hover:bg-sky-300 text-slate-950 font-extrabold text-xs sm:text-sm transition-all active:scale-95 flex items-center gap-1.5 shadow-md">
+            <span>← Modificar Capas del Silicio</span>
+          </button>
+        </div>
+
+        <!-- MAPA DE CALOR INTERACTIVO DEL SILICIO + TOOLTIP EN VIVO -->
+        <div class="relative rounded-2xl bg-[#000000] border border-[#1c222e] p-3 flex flex-col items-center">
+          <div class="w-full flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 mb-1.5 px-1">
+            <span>Toca o pasa el cursor sobre un bloque para diagnosticar</span>
+            <div class="flex items-center gap-2 font-mono text-[10px]">
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-[#38bdf8] inline-block"></i>Frío</span>
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-[#06b6d4] inline-block"></i>Activo</span>
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-[#8b5cf6] inline-block"></i>Alto</span>
+              <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-[#ef4444] inline-block"></i>Crítico</span>
+            </div>
+          </div>
+
+          <svg id="live-die-svg" viewBox="0 0 460 250" class="w-full max-w-[520px] h-auto select-none">
+            <!-- Generado dinámicamente por JS -->
+          </svg>
+
+          <!-- Tooltip Flotante de Inspección de Bloque -->
+          <div id="die-block-tooltip"
+            class="hidden pointer-events-none absolute bottom-3 left-3 right-3 px-3.5 py-2.5 rounded-xl bg-[#090a0d]/95 backdrop-blur-md border border-[#38bdf8]/60 text-xs text-slate-100 shadow-2xl z-20">
+          </div>
+        </div>
+
+        <!-- 4 MEDIDORES DE TELEMETRÍA EN TIEMPO REAL -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Temperatura -->
+          <div class="p-3 rounded-xl bg-[#000000] border border-[#1c222e] flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Temperatura</div>
+            <div id="tel-temp-val" class="font-mono text-xl sm:text-2xl font-black text-[#38bdf8] mt-0.5">46 °C</div>
+            <div class="w-full h-2 bg-[#090a0d] rounded-full overflow-hidden mt-1.5 border border-[#1c222e]">
+              <div id="tel-temp-bar" class="h-full bg-[#38bdf8] transition-all duration-200" style="width: 30%"></div>
+            </div>
+          </div>
+
+          <!-- Consumo Watts -->
+          <div class="p-3 rounded-xl bg-[#000000] border border-[#1c222e] flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Consumo (Watts)</div>
+            <div id="tel-watts-val" class="font-mono text-xl sm:text-2xl font-black text-[#22d3ee] mt-0.5">32 W</div>
+            <div id="tel-watts-sub" class="text-[10px] font-mono text-slate-500 mt-1">Potencia Activa</div>
+          </div>
+
+          <!-- IPC Real -->
+          <div class="p-3 rounded-xl bg-[#000000] border border-[#1c222e] flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">IPC Real</div>
+            <div id="tel-ipc-val" class="font-mono text-xl sm:text-2xl font-black text-[#818cf8] mt-0.5">3.10</div>
+            <div id="tel-ipc-sub" class="text-[10px] font-mono text-slate-500 mt-1">Inst / Ciclo</div>
+          </div>
+
+          <!-- Frecuencia Efectiva -->
+          <div class="p-3 rounded-xl bg-[#000000] border border-[#1c222e] flex flex-col justify-between">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Reloj Efectivo</div>
+            <div id="tel-ghz-val" class="font-mono text-xl sm:text-2xl font-black text-white mt-0.5">3.60 GHz</div>
+            <div id="tel-ghz-sub" class="text-[10px] font-mono text-[#38bdf8] mt-1">100% Frecuencia</div>
+          </div>
+        </div>
+
+        <!-- SISTEMA DE ALERTAS DE CUELLO DE BOTELLA Y MUROS -->
+        <div id="alerts-container" class="space-y-2">
+          <!-- Generado dinámicamente por JS -->
+        </div>
+
+        <!-- GRÁFICA DE HISTORIAL EN VIVO (ÚLTIMOS 25 SEGUNDOS: FPS VS TEMPERATURA) -->
+        <div class="bg-[#000000] border border-[#1c222e] rounded-2xl p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5 px-1">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Historial en Vivo (Últimos 25s)</span>
+            <div class="flex items-center gap-3 font-mono text-[11px] font-bold">
+              <span class="text-[#38bdf8]">● FPS</span>
+              <span class="text-[#ef4444]">● Temperatura (°C)</span>
+            </div>
+          </div>
+          <div class="w-full h-[92px]">
+            <canvas id="telemetry-chart-canvas" class="block w-full h-full"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== LÓGICA DE SIMULACIÓN Y RENDERIZADO ==================== -->
+  <script>
+    // =========================================================================
+    // 1. PALETA DE COLORES CERCANOS POR CAPA (AZUL / COBALTO / ÍNDIGO / CIAN)
+    // =========================================================================
+    const LAYER_COLORS = {
+      layer1: { hex: '#38bdf8', fill: 'rgba(56, 189, 248, 0.20)', text: '#bae6fd' }, // Light Sky Blue
+      layer2: { hex: '#3b82f6', fill: 'rgba(59, 130, 246, 0.22)', text: '#bfdbfe' }, // Cobalt / Royal Blue
+      layer3: { hex: '#6366f1', fill: 'rgba(99, 102, 241, 0.22)', text: '#c7d2fe' }, // Indigo Blue
+      layer4: { hex: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.22)', text: '#ddd6fe' }, // Periwinkle / Soft Violet-Blue
+      layer5: { hex: '#06b6d4', fill: 'rgba(6, 182, 212, 0.20)', text: '#a5f3fc' }   // Ice Cyan-Blue
+    };
+
+    const MAX_DIE_AREA = 250; // mm² límite estándar
+    let freeAreaMode = false;
+    let activeView = 1;
+    let hoveredBlockKey = null;
+
+    // Configuración por defecto: SoC Avanzado Híbrido (Equilibrado)
+    let chipConfig = {
+      pCores: 4,            // 1..6 (18 mm² c/u) -> 72
+      eCores: 4,            // 0..8 (6 mm² c/u)  -> 24
+      superscalar: 4,       // 1, 2, 4 (0, 8, 18 mm²) -> 18
+      ooo: true,            // boolean (12 mm²) -> 12
+      smt: true,            // boolean (6 mm²)  -> 6  (Total Capa 1 = 132 mm²)
+      predictor: 'dynamic', // 'static' (2 mm²) | 'dynamic' (10 mm²)
+      cacheMB: 16,          // 1 (4), 4 (12), 16 (28), 32 (48)
+      hasGpu: true,         // boolean (45 mm²)
+      hasNpu: true,         // boolean (32 mm²) (Total Capa 4 = 77 mm²)
+      ghz: 3.6              // 1.5 .. 5.5 GHz
+    };
+
+    // Carga de trabajo manipulable en vivo
+    let workload = {
+      sonicCount: 6,     // 1 .. 24
+      spikeCount: 3,     // 0 .. 16
+      hdMode: false,     // Sonic Mania Pixel (false) vs Sonic Moderno HD (true)
+      greenHillAi: false,// Filtro IA (Green Hill Zone)
+      bgApps: false      // Apps 2do Plano (ventanas emergentes "2do plano")
+    };
+
+    // Telemetría en tiempo real
+    let liveMetrics = {
+      fps: 60,
+      tempC: 46,
+      watts: 32,
+      ipc: 3.25,
+      effectiveGhz: 3.6,
+      throttled: false,
+      pCoreLoads: [24, 21, 19, 18],
+      eCoreLoads: [10, 10, 8, 8],
+      cacheLoad: 22,
+      cacheMissRate: 3,
+      frontEndLoad: 24,
+      branchMissRate: 3,
+      gpuLoad: 26,
+      npuLoad: 0,
+      alerts: []
+    };
+
+    const HISTORY_LEN = 50; // 25 segundos (0.5s por muestra)
+    let telemetryHistory = {
+      fps: Array(HISTORY_LEN).fill(60),
+      temp: Array(HISTORY_LEN).fill(46)
+    };
+
+    // =========================================================================
+    // 2. CÁLCULO DE ÁREA DE SILICIO Y PRESETS RÁPIDOS
+    // =========================================================================
+    function calculateDieArea(cfg) {
+      const pArea = cfg.pCores * 18;
+      const eArea = cfg.eCores * 6;
+      const ssArea = cfg.superscalar === 4 ? 18 : (cfg.superscalar === 2 ? 8 : 0);
+      const oooArea = cfg.ooo ? 12 : 0;
+      const smtArea = cfg.smt ? 6 : 0;
+      const predArea = cfg.predictor === 'dynamic' ? 10 : 2;
+      const cacheMap = { 1: 4, 4: 12, 16: 28, 32: 48 };
+      const cacheArea = cacheMap[cfg.cacheMB] || 4;
+      const gpuArea = cfg.hasGpu ? 45 : 0;
+      const npuArea = cfg.hasNpu ? 32 : 0;
+
+      return {
+        layer1: pArea + eArea + ssArea + oooArea + smtArea,
+        layer2: predArea,
+        layer3: cacheArea,
+        layer4: gpuArea + npuArea,
+        total: pArea + eArea + ssArea + oooArea + smtArea + predArea + cacheArea + gpuArea + npuArea
+      };
+    }
+
+    function showToast(msg, isWarning = false) {
+      const toast = document.getElementById('lab-toast');
+      const toastMsg = document.getElementById('lab-toast-msg');
+      toastMsg.textContent = msg;
+      toast.className = isWarning
+        ? 'fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-[#090a0d] border border-red-500 text-red-300 text-xs sm:text-sm font-bold shadow-2xl flex items-center gap-2.5 transition-all'
+        : 'fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-[#090a0d] border border-[#38bdf8]/60 text-[#38bdf8] text-xs sm:text-sm font-bold shadow-2xl flex items-center gap-2.5 transition-all';
+      toast.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => toast.classList.add('hidden'), 2800);
+    }
+
+    function togglePresetsMenu() {
+      document.getElementById('presets-menu').classList.toggle('hidden');
+    }
+
+    window.addEventListener('click', (e) => {
+      const btn = document.getElementById('presets-dropdown-btn');
+      const menu = document.getElementById('presets-menu');
+      if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function applyPreset(presetKey) {
+      document.getElementById('presets-menu').classList.add('hidden');
+      if (presetKey === 'basicSingle') {
+        chipConfig = {
+          pCores: 1, eCores: 0, superscalar: 1, ooo: false, smt: false,
+          predictor: 'static', cacheMB: 1, hasGpu: false, hasNpu: false, ghz: 5.0
+        };
+        showToast('Cargado: Chip Básico (1 Núcleo / Alto GHz)');
+      } else if (presetKey === 'unbalanced') {
+        chipConfig = {
+          pCores: 4, eCores: 0, superscalar: 2, ooo: true, smt: true,
+          predictor: 'dynamic', cacheMB: 1, hasGpu: false, hasNpu: false, ghz: 5.1
+        };
+        showToast('Cargado: Chip Desbalanceado (Sin Caché ni NPU)');
+      } else if (presetKey === 'modernSoc') {
+        chipConfig = {
+          pCores: 4, eCores: 4, superscalar: 4, ooo: true, smt: true,
+          predictor: 'dynamic', cacheMB: 16, hasGpu: true, hasNpu: true, ghz: 3.6
+        };
+        showToast('Cargado: SoC Avanzado Híbrido (Equilibrado)');
+      }
+      syncBuilderUI();
+      updateSimulationPhysics(0.2);
+      renderLiveDieSvg();
+    }
+
+    function toggleFreeAreaMode() {
+      freeAreaMode = !freeAreaMode;
+      const btn = document.getElementById('btn-free-area');
+      const dot = document.getElementById('dot-free-area');
+      const lbl = document.getElementById('lbl-free-area');
+      if (freeAreaMode) {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-[#38bdf8]/20 text-[#38bdf8] border-[#38bdf8]/50 flex items-center gap-2';
+        dot.className = 'w-2 h-2 rounded-full bg-[#38bdf8]';
+        lbl.textContent = 'Modo Libre: ON';
+        showToast('Modo Libre activado: sin límite de 250 mm²');
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-[#000000] text-slate-300 border-[#1c222e] hover:border-[#38bdf8]/50 flex items-center gap-2';
+        dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        lbl.textContent = 'Modo Libre: OFF';
+      }
+      syncBuilderUI();
+    }
+
+    function onBuilderChange(key, value) {
+      const candidate = { ...chipConfig, [key]: value };
+      const newArea = calculateDieArea(candidate).total;
+
+      if (!freeAreaMode && newArea > MAX_DIE_AREA) {
+        syncBuilderUI();
+        const meterCard = document.getElementById('area-meter-card');
+        meterCard.classList.add('thermal-alert-pulse');
+        setTimeout(() => meterCard.classList.remove('thermal-alert-pulse'), 1100);
+        showToast(`Límite de ${MAX_DIE_AREA} mm² alcanzado (${newArea} mm²). Reduce otra capa o activa Modo Libre.`, true);
+        return;
+      }
+
+      chipConfig = candidate;
+      syncBuilderUI();
+      updateSimulationPhysics(0.2);
+      renderLiveDieSvg();
+    }
+
+    function syncBuilderUI() {
+      const areas = calculateDieArea(chipConfig);
+
+      // Etiquetas de área por capa
+      document.getElementById('layer1-area-tag').textContent = `${areas.layer1} mm²`;
+      document.getElementById('layer2-area-tag').textContent = `${areas.layer2} mm²`;
+      document.getElementById('layer3-area-tag').textContent = `${areas.layer3} mm²`;
+      document.getElementById('layer4-area-tag').textContent = `${areas.layer4} mm²`;
+
+      // Sliders y valores
+      document.getElementById('slider-pcores').value = chipConfig.pCores;
+      document.getElementById('val-pcores').textContent = chipConfig.pCores;
+
+      document.getElementById('slider-ecores').value = chipConfig.eCores;
+      document.getElementById('val-ecores').textContent = chipConfig.eCores;
+
+      document.getElementById('slider-ghz').value = chipConfig.ghz;
+      document.getElementById('val-ghz-badge').textContent = `${chipConfig.ghz.toFixed(1)} GHz`;
+
+      // Botones Superescalar (Capa 1: #38bdf8)
+      [1, 2, 4].forEach(w => {
+        const b = document.getElementById(`btn-ss-${w}`);
+        b.className = (chipConfig.superscalar === w)
+          ? 'py-2 px-1.5 rounded-lg text-[11px] font-extrabold border transition-all bg-[#38bdf8] text-slate-950 border-[#38bdf8]'
+          : 'py-2 px-1.5 rounded-lg text-[11px] font-bold border transition-all bg-[#090a0d] text-slate-300 border-[#1c222e] hover:border-slate-600';
+      });
+      document.getElementById('val-superscalar-area').textContent =
+        chipConfig.superscalar === 4 ? '18 mm²' : (chipConfig.superscalar === 2 ? '8 mm²' : '0 mm²');
+
+      // Botón OoO (Capa 1: #38bdf8)
+      const btnOoo = document.getElementById('btn-ooo-toggle');
+      if (chipConfig.ooo) {
+        btnOoo.className = 'w-full py-2 px-2 rounded-lg text-xs font-extrabold border transition-all bg-[#38bdf8]/20 text-[#38bdf8] border-[#38bdf8]/55';
+        btnOoo.textContent = 'OoO: ON';
+      } else {
+        btnOoo.className = 'w-full py-2 px-2 rounded-lg text-xs font-bold border transition-all bg-[#090a0d] text-slate-400 border-[#1c222e]';
+        btnOoo.textContent = 'OoO: OFF';
+      }
+
+      // Botón SMT Multihilo (Capa 1: #38bdf8)
+      const btnSmt = document.getElementById('btn-smt-toggle');
+      if (chipConfig.smt) {
+        btnSmt.className = 'w-full py-2 px-2 rounded-lg text-xs font-extrabold border transition-all bg-[#38bdf8]/20 text-[#38bdf8] border-[#38bdf8]/55';
+        btnSmt.textContent = 'SMT: ON';
+      } else {
+        btnSmt.className = 'w-full py-2 px-2 rounded-lg text-xs font-bold border transition-all bg-[#090a0d] text-slate-400 border-[#1c222e]';
+        btnSmt.textContent = 'SMT: OFF';
+      }
+
+      // Predictor (Capa 2: #3b82f6)
+      document.getElementById('btn-pred-static').className = chipConfig.predictor === 'static'
+        ? 'w-full p-3 rounded-xl text-left border transition-all bg-[#3b82f6]/20 text-blue-200 border-[#3b82f6]/60 flex items-center justify-between'
+        : 'w-full p-3 rounded-xl text-left border transition-all bg-[#000000] text-slate-300 border-[#1c222e] flex items-center justify-between';
+
+      document.getElementById('btn-pred-dynamic').className = chipConfig.predictor === 'dynamic'
+        ? 'w-full p-3 rounded-xl text-left border transition-all bg-[#3b82f6]/20 text-blue-200 border-[#3b82f6]/60 flex items-center justify-between'
+        : 'w-full p-3 rounded-xl text-left border transition-all bg-[#000000] text-slate-300 border-[#1c222e] flex items-center justify-between';
+
+      // Caché (Capa 3: #6366f1)
+      [1, 4, 16, 32].forEach(mb => {
+        const b = document.getElementById(`btn-cache-${mb}`);
+        b.className = chipConfig.cacheMB === mb
+          ? 'p-2.5 rounded-xl border text-center transition-all bg-[#6366f1]/20 text-indigo-200 border-[#6366f1]/60'
+          : 'p-2.5 rounded-xl border text-center transition-all bg-[#000000] text-slate-300 border-[#1c222e] hover:border-slate-600';
+      });
+
+      // GPU + SIMD (Capa 4: #8b5cf6)
+      const btnGpu = document.getElementById('btn-gpu-toggle');
+      if (chipConfig.hasGpu) {
+        btnGpu.className = 'px-3.5 py-2 rounded-lg text-xs font-extrabold border transition-all bg-[#8b5cf6]/25 text-violet-200 border-[#8b5cf6]/60';
+        btnGpu.textContent = 'ON (45 mm²)';
+      } else {
+        btnGpu.className = 'px-3.5 py-2 rounded-lg text-xs font-bold border transition-all bg-[#090a0d] text-slate-400 border-[#1c222e]';
+        btnGpu.textContent = 'OFF';
+      }
+
+      // NPU IA (Capa 4: #8b5cf6)
+      const btnNpu = document.getElementById('btn-npu-toggle');
+      if (chipConfig.hasNpu) {
+        btnNpu.className = 'px-3.5 py-2 rounded-lg text-xs font-extrabold border transition-all bg-[#8b5cf6]/25 text-violet-200 border-[#8b5cf6]/60';
+        btnNpu.textContent = 'ON (32 mm²)';
+      } else {
+        btnNpu.className = 'px-3.5 py-2 rounded-lg text-xs font-bold border transition-all bg-[#090a0d] text-slate-400 border-[#1c222e]';
+        btnNpu.textContent = 'OFF';
+      }
+
+      // Advertencia GHz (Capa 5: #06b6d4)
+      const ghzWarn = document.getElementById('builder-ghz-warning');
+      if (chipConfig.ghz > 4.4) {
+        ghzWarn.className = 'p-2.5 rounded-xl bg-red-950/50 border border-red-500/60 text-red-200 text-xs font-bold';
+        ghzWarn.textContent = `🔥 Riesgo de Calor (${chipConfig.ghz.toFixed(1)} GHz): alto consumo y Thermal Throttling bajo carga.`;
+      } else if (chipConfig.ghz > 3.9) {
+        ghzWarn.className = 'p-2.5 rounded-xl bg-[#06b6d4]/15 border border-[#06b6d4]/45 text-cyan-200 text-xs font-semibold';
+        ghzWarn.textContent = `⚡ Frecuencia elevada (${chipConfig.ghz.toFixed(1)} GHz): vigila los Watts al exigir el chip.`;
+      } else {
+        ghzWarn.className = 'p-2.5 rounded-xl bg-[#06b6d4]/10 border border-[#06b6d4]/35 text-cyan-200 text-xs font-semibold';
+        ghzWarn.textContent = `✓ Voltaje óptimo (${chipConfig.ghz.toFixed(1)} GHz): alta eficiencia energética.`;
+      }
+
+      // Medidor de área
+      const areaText = document.getElementById('die-area-text');
+      const areaBar = document.getElementById('die-area-bar');
+      if (freeAreaMode) {
+        areaText.textContent = `${areas.total} mm² (Sin límite)`;
+        areaText.className = 'font-mono text-sm sm:text-base font-extrabold text-[#38bdf8]';
+        areaBar.style.width = `${Math.min(100, (areas.total / 350) * 100)}%`;
+      } else {
+        const pct = Math.min(100, (areas.total / MAX_DIE_AREA) * 100);
+        areaText.textContent = `${areas.total} / ${MAX_DIE_AREA} mm²`;
+        areaText.className = pct > 94
+          ? 'font-mono text-sm sm:text-base font-extrabold text-indigo-300'
+          : 'font-mono text-sm sm:text-base font-extrabold text-[#38bdf8]';
+        areaBar.style.width = `${pct}%`;
+      }
+
+      renderBuilderDieSvg();
+    }
+
+    // =========================================================================
+    // 3. RENDERIZADO SVG DEL DADO DE SILICIO (CON COLORES CERCANOS POR CAPA)
+    // =========================================================================
+    function generateSubstratePinsSvg(x, y, w, h) {
+      let pins = '';
+      const step = 14;
+      for (let px = x + 16; px < x + w - 16; px += step) {
+        pins += `<rect x="${px}" y="${y - 6}" width="5" height="6" rx="1" fill="#38bdf8" opacity="0.55" />`;
+        pins += `<rect x="${px}" y="${y + h}" width="5" height="6" rx="1" fill="#38bdf8" opacity="0.55" />`;
+      }
+      for (let py = y + 16; py < y + h - 16; py += step) {
+        pins += `<rect x="${x - 6}" y="${py}" width="6" height="5" rx="1" fill="#38bdf8" opacity="0.55" />`;
+        pins += `<rect x="${x + w}" y="${py}" width="6" height="5" rx="1" fill="#38bdf8" opacity="0.55" />`;
+      }
+      return pins;
+    }
+
+    function renderBuilderDieSvg() {
+      const svg = document.getElementById('builder-die-svg');
+      const pkgX = 24, pkgY = 18, pkgW = 372, pkgH = 304;
+      const dieX = 46, dieY = 38, dieW = 328, dieH = 264;
+
+      let html = `
+        ${generateSubstratePinsSvg(pkgX, pkgY, pkgW, pkgH)}
+        <rect x="${pkgX}" y="${pkgY}" width="${pkgW}" height="${pkgH}" rx="18" fill="#090a0d" stroke="#1c222e" stroke-width="2" />
+        <rect x="${dieX}" y="${dieY}" width="${dieW}" height="${dieH}" rx="12" fill="#000000" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.45" />
+      `;
+
+      const pTotalW = dieW - 20;
+
+      // 1. Capa 2: Predictor de Saltos + Control Front-End (#3b82f6)
+      const feH = 38;
+      html += `
+        <rect x="${dieX + 10}" y="${dieY + 10}" width="${pTotalW}" height="${feH}" rx="7"
+          fill="${LAYER_COLORS.layer2.fill}" stroke="${LAYER_COLORS.layer2.hex}" stroke-width="1.5" />
+        <text x="${dieX + dieW / 2}" y="${dieY + 26}" text-anchor="middle" fill="${LAYER_COLORS.layer2.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+          CAPA 2 • PREDICTOR ${chipConfig.predictor === 'dynamic' ? 'DINÁMICO (2-BIT)' : 'ESTÁTICO'}
+        </text>
+        <text x="${dieX + dieW / 2}" y="${dieY + 40}" text-anchor="middle" fill="#93c5fd" font-family="Inter" font-size="9.5">
+          ${chipConfig.superscalar}x Superescalar • ${chipConfig.ooo ? 'OoO ON' : 'En Orden'} • ${chipConfig.smt ? 'SMT ON' : '1 Hilo/Núcleo'} • ${chipConfig.ghz.toFixed(1)} GHz
+        </text>
+      `;
+
+      // 2. Capa 1: Fila de P-Cores (#38bdf8)
+      const pTop = dieY + 56;
+      const pH = 54;
+      const pGap = 6;
+      const pEachW = (pTotalW - pGap * (chipConfig.pCores - 1)) / chipConfig.pCores;
+      for (let i = 0; i < chipConfig.pCores; i++) {
+        const bx = dieX + 10 + i * (pEachW + pGap);
+        html += `
+          <rect x="${bx}" y="${pTop}" width="${pEachW}" height="${pH}" rx="7"
+            fill="${LAYER_COLORS.layer1.fill}" stroke="${LAYER_COLORS.layer1.hex}" stroke-width="1.5" />
+          <text x="${bx + pEachW / 2}" y="${pTop + 24}" text-anchor="middle" fill="#f0f9ff" font-family="JetBrains Mono" font-size="11" font-weight="800">
+            P${i + 1}
+          </text>
+          <text x="${bx + pEachW / 2}" y="${pTop + 39}" text-anchor="middle" fill="#7dd3fc" font-family="Inter" font-size="9">
+            ${chipConfig.smt ? '2 Hilos' : '1 Hilo'}
+          </text>
+        `;
+      }
+
+      // 3. Capa 1: Fila de E-Cores (#38bdf8 con trazo más suave)
+      const eTop = pTop + pH + 8;
+      const eH = 34;
+      if (chipConfig.eCores > 0) {
+        const eGap = 5;
+        const eEachW = (pTotalW - eGap * (chipConfig.eCores - 1)) / chipConfig.eCores;
+        for (let i = 0; i < chipConfig.eCores; i++) {
+          const bx = dieX + 10 + i * (eEachW + eGap);
+          html += `
+            <rect x="${bx}" y="${eTop}" width="${eEachW}" height="${eH}" rx="6"
+              fill="rgba(56, 189, 248, 0.12)" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.75" />
+            <text x="${bx + eEachW / 2}" y="${eTop + 21}" text-anchor="middle" fill="#bae6fd" font-family="JetBrains Mono" font-size="10" font-weight="700">
+              E${i + 1}
+            </text>
+          `;
+        }
+      } else {
+        html += `
+          <rect x="${dieX + 10}" y="${eTop}" width="${pTotalW}" height="${eH}" rx="6"
+            fill="rgba(9, 10, 13, 0.5)" stroke="#1c222e" stroke-dasharray="4 4" />
+          <text x="${dieX + dieW / 2}" y="${eTop + 21}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10.5">
+            Sin Núcleos de Eficiencia (E-Cores)
+          </text>
+        `;
+      }
+
+      // 4. Capa 3: Memoria Caché L1 / L2 / L3 (#6366f1)
+      const cTop = eTop + eH + 8;
+      const cH = chipConfig.cacheMB === 32 ? 44 : (chipConfig.cacheMB === 16 ? 38 : (chipConfig.cacheMB === 4 ? 32 : 26));
+      html += `
+        <rect x="${dieX + 10}" y="${cTop}" width="${pTotalW}" height="${cH}" rx="7"
+          fill="${LAYER_COLORS.layer3.fill}" stroke="${LAYER_COLORS.layer3.hex}" stroke-width="1.5" />
+        <text x="${dieX + dieW / 2}" y="${cTop + cH / 2 + 4}" text-anchor="middle" fill="${LAYER_COLORS.layer3.text}" font-family="JetBrains Mono" font-size="11" font-weight="800">
+          CAPA 3 • CACHÉ L1 / L2 / L3 (${chipConfig.cacheMB} MB)
+        </text>
+      `;
+
+      // 5. Capa 4: Aceleradores GPU + SIMD y NPU (#8b5cf6)
+      const accTop = cTop + cH + 8;
+      const accH = (dieY + dieH - 10) - accTop;
+      const gpuW = Math.round(pTotalW * 0.56);
+      const npuW = pTotalW - gpuW - 8;
+
+      if (chipConfig.hasGpu) {
+        html += `
+          <rect x="${dieX + 10}" y="${accTop}" width="${gpuW}" height="${accH}" rx="7"
+            fill="${LAYER_COLORS.layer4.fill}" stroke="${LAYER_COLORS.layer4.hex}" stroke-width="1.5" />
+          <text x="${dieX + 10 + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="${LAYER_COLORS.layer4.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            CAPA 4 • GPU + SIMD
+          </text>
+        `;
+      } else {
+        html += `
+          <rect x="${dieX + 10}" y="${accTop}" width="${gpuW}" height="${accH}" rx="7"
+            fill="rgba(9, 10, 13, 0.5)" stroke="#1c222e" stroke-dasharray="4 4" />
+          <text x="${dieX + 10 + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">
+            Sin GPU + SIMD
+          </text>
+        `;
+      }
+
+      const npuX = dieX + 10 + gpuW + 8;
+      if (chipConfig.hasNpu) {
+        html += `
+          <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="7"
+            fill="rgba(139, 92, 246, 0.16)" stroke="${LAYER_COLORS.layer4.hex}" stroke-width="1.5" />
+          <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="${LAYER_COLORS.layer4.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            NPU IA
+          </text>
+        `;
+      } else {
+        html += `
+          <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="7"
+            fill="rgba(9, 10, 13, 0.5)" stroke="#1c222e" stroke-dasharray="4 4" />
+          <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">
+            Sin NPU IA
+          </text>
+        `;
+      }
+
+      svg.innerHTML = html;
+    }
+
+    // =========================================================================
+    // 4. RADIOGRAFÍA TÉRMICA DEL SILICIO (BORDES DE CAPA + CALOR INTERIOR)
+    // =========================================================================
+    function getThermalInteriorStyle(loadPct, tempC, baseLayerHex) {
+      const effectiveHeat = Math.max(loadPct, tempC > 92 ? 95 : 0);
+      if (effectiveHeat >= 78) {
+        return {
+          fill: 'rgba(239, 68, 68, 0.42)',
+          stroke: '#ef4444',
+          text: '#fee2e2',
+          hotClass: 'die-hot-block'
+        };
+      }
+      if (effectiveHeat >= 52) {
+        return {
+          fill: 'rgba(139, 92, 246, 0.34)',
+          stroke: baseLayerHex,
+          text: '#f5f3ff',
+          hotClass: ''
+        };
+      }
+      if (effectiveHeat >= 26) {
+        return {
+          fill: 'rgba(6, 182, 212, 0.28)',
+          stroke: baseLayerHex,
+          text: '#ecfeff',
+          hotClass: ''
+        };
+      }
+      return {
+        fill: 'rgba(56, 189, 248, 0.16)',
+        stroke: baseLayerHex,
+        text: '#e0f2fe',
+        hotClass: ''
+      };
+    }
+
+    function getTooltipDescription(blockKey) {
+      const m = liveMetrics;
+      if (blockKey.startsWith('pcore-')) {
+        const idx = parseInt(blockKey.split('-')[1], 10);
+        const load = Math.round(m.pCoreLoads[idx] || 0);
+        if (load >= 85 && !chipConfig.hasGpu && workload.sonicCount > 8) {
+          return `P-Core ${idx + 1} (${load}%): ¡SATURADO! Renderizando ${workload.sonicCount} Sonics sin GPU + SIMD.`;
+        }
+        if (load >= 85 && !chipConfig.hasNpu && workload.greenHillAi) {
+          return `P-Core ${idx + 1} (${load}%): Sobrecargado procesando el Filtro IA (Green Hill) porque falta NPU.`;
+        }
+        if (m.throttled) {
+          return `P-Core ${idx + 1} (${load}%): Frenado por Thermal Throttling (${m.effectiveGhz.toFixed(2)} GHz) al superar 95°C.`;
+        }
+        return `P-Core ${idx + 1} (${load}%): Ejecutando simulación a ${m.effectiveGhz.toFixed(2)} GHz (IPC ${m.ipc.toFixed(2)}, ${chipConfig.smt ? 'SMT 2 hilos' : '1 hilo'}).`;
+      }
+      if (blockKey.startsWith('ecore-')) {
+        const idx = parseInt(blockKey.split('-')[1], 10);
+        const load = Math.round(m.eCoreLoads[idx] || 0);
+        return workload.bgApps
+          ? `E-Core ${idx + 1} (${load}%): Gestionando las ventanas "2do plano" con mínimo consumo energético.`
+          : `E-Core ${idx + 1} (${load}%): En reposo de bajo consumo esperando tareas en segundo plano.`;
+      }
+      if (blockKey === 'frontend') {
+        const load = Math.round(m.frontEndLoad);
+        return chipConfig.predictor === 'static' && workload.spikeCount > 4
+          ? `Predictor Estático (${load}%): ${Math.round(m.branchMissRate)}% fallos por Sonics esquivando pinchos → Vaciando pipeline.`
+          : `Predictor + Control (${load}%): Despachando ${chipConfig.superscalar} vías/ciclo (${chipConfig.ooo ? 'Fuera de Orden' : 'En Orden'}).`;
+      }
+      if (blockKey === 'cache') {
+        const load = Math.round(m.cacheLoad);
+        return m.cacheMissRate > 18
+          ? `Caché L1/L2/L3 de ${chipConfig.cacheMB} MB (${load}%): ¡MURO DE MEMORIA! ${Math.round(m.cacheMissRate)}% fallos por Texturas HD / 4K.`
+          : `Caché L1/L2/L3 de ${chipConfig.cacheMB} MB (${load}%): Alta tasa de acierto (${100 - Math.round(m.cacheMissRate)}%), datos listos sin esperar a RAM.`;
+      }
+      if (blockKey === 'gpu') {
+        const load = Math.round(m.gpuLoad);
+        return `GPU + SIMD (${load}%): Renderizando en paralelo ${workload.sonicCount} Sonics (${workload.hdMode ? 'Moderno HD' : 'Mania Pixel'}).`;
+      }
+      if (blockKey === 'npu') {
+        const load = Math.round(m.npuLoad);
+        return workload.greenHillAi
+          ? `NPU IA (${load}%): Procesando Filtro IA (Green Hill) con alta eficiencia sin saturar los P-Cores.`
+          : `NPU IA (0%): Acelerador neuronal en reposo (activa "Filtro IA (Green Hill)" para encenderlo).`;
+      }
+      return '';
+    }
+
+    function setHoveredBlock(key) {
+      hoveredBlockKey = key;
+      const tip = document.getElementById('die-block-tooltip');
+      if (!key) {
+        tip.classList.add('hidden');
+        return;
+      }
+      tip.textContent = getTooltipDescription(key);
+      tip.classList.remove('hidden');
+    }
+
+    function renderLiveDieSvg() {
+      const svg = document.getElementById('live-die-svg');
+      if (!svg) return;
+      const m = liveMetrics;
+      const pkgX = 22, pkgY = 12, pkgW = 416, pkgH = 226;
+      const dieX = 42, dieY = 26, dieW = 376, dieH = 198;
+
+      const dieBorderColor = m.throttled ? '#ef4444' : '#38bdf8';
+
+      let html = `
+        ${generateSubstratePinsSvg(pkgX, pkgY, pkgW, pkgH)}
+        <rect x="${pkgX}" y="${pkgY}" width="${pkgW}" height="${pkgH}" rx="16" fill="#090a0d" stroke="#1c222e" stroke-width="2" />
+        <rect x="${dieX}" y="${dieY}" width="${dieW}" height="${dieH}" rx="10" fill="#000000" stroke="${dieBorderColor}" stroke-width="1.8" />
+      `;
+
+      const innerW = dieW - 18;
+      const startX = dieX + 9;
+
+      // 1. Capa 2: Predictor + Control Front-End
+      const feStyle = getThermalInteriorStyle(m.frontEndLoad, m.tempC, LAYER_COLORS.layer2.hex);
+      html += `
+        <g class="cursor-pointer ${feStyle.hotClass}" onmouseenter="setHoveredBlock('frontend')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('frontend')">
+          <rect x="${startX}" y="${dieY + 8}" width="${innerW}" height="30" rx="6" fill="${feStyle.fill}" stroke="${feStyle.stroke}" stroke-width="1.6" />
+          <text x="${dieX + dieW / 2}" y="${dieY + 27}" text-anchor="middle" fill="${feStyle.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            PREDICTOR ${chipConfig.predictor === 'dynamic' ? '2-BIT' : 'ESTÁTICO'} • ${chipConfig.superscalar}x ${chipConfig.ooo ? 'OoO' : 'ORDEN'} • ${Math.round(m.frontEndLoad)}%
+          </text>
+        </g>
+      `;
+
+      // 2. Capa 1: P-Cores
+      const pTop = dieY + 44;
+      const pH = 44;
+      const pGap = 6;
+      const pEachW = (innerW - pGap * (chipConfig.pCores - 1)) / chipConfig.pCores;
+      for (let i = 0; i < chipConfig.pCores; i++) {
+        const bx = startX + i * (pEachW + pGap);
+        const load = Math.round(m.pCoreLoads[i] || 0);
+        const st = getThermalInteriorStyle(load, m.tempC, LAYER_COLORS.layer1.hex);
+        html += `
+          <g class="cursor-pointer ${st.hotClass}" onmouseenter="setHoveredBlock('pcore-${i}')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('pcore-${i}')">
+            <rect x="${bx}" y="${pTop}" width="${pEachW}" height="${pH}" rx="6" fill="${st.fill}" stroke="${st.stroke}" stroke-width="1.6" />
+            <text x="${bx + pEachW / 2}" y="${pTop + 19}" text-anchor="middle" fill="#ffffff" font-family="JetBrains Mono" font-size="10.5" font-weight="800">P${i + 1}</text>
+            <text x="${bx + pEachW / 2}" y="${pTop + 34}" text-anchor="middle" fill="${st.text}" font-family="JetBrains Mono" font-size="10" font-weight="700">${load}%</text>
+          </g>
+        `;
+      }
+
+      // 3. Capa 1: E-Cores
+      const eTop = pTop + pH + 6;
+      const eH = 28;
+      if (chipConfig.eCores > 0) {
+        const eGap = 5;
+        const eEachW = (innerW - eGap * (chipConfig.eCores - 1)) / chipConfig.eCores;
+        for (let i = 0; i < chipConfig.eCores; i++) {
+          const bx = startX + i * (eEachW + eGap);
+          const load = Math.round(m.eCoreLoads[i] || 0);
+          const st = getThermalInteriorStyle(load, m.tempC * 0.82, LAYER_COLORS.layer1.hex);
+          html += `
+            <g class="cursor-pointer ${st.hotClass}" onmouseenter="setHoveredBlock('ecore-${i}')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('ecore-${i}')">
+              <rect x="${bx}" y="${eTop}" width="${eEachW}" height="${eH}" rx="5" fill="${st.fill}" stroke="${st.stroke}" stroke-width="1.3" />
+              <text x="${bx + eEachW / 2}" y="${eTop + 18}" text-anchor="middle" fill="${st.text}" font-family="JetBrains Mono" font-size="9.5" font-weight="700">E${i + 1}:${load}%</text>
+            </g>
+          `;
+        }
+      } else {
+        html += `
+          <rect x="${startX}" y="${eTop}" width="${innerW}" height="${eH}" rx="5" fill="rgba(9, 10, 13, 0.5)" stroke="#1c222e" stroke-dasharray="4 4" />
+          <text x="${dieX + dieW / 2}" y="${eTop + 18}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">Sin Núcleos E (Apps "2do plano" cargan a los P-Cores)</text>
+        `;
+      }
+
+      // 4. Capa 3: Caché L1 / L2 / L3
+      const cTop = eTop + eH + 6;
+      const cH = 30;
+      const cSt = getThermalInteriorStyle(m.cacheLoad, m.tempC * 0.85, LAYER_COLORS.layer3.hex);
+      html += `
+        <g class="cursor-pointer ${cSt.hotClass}" onmouseenter="setHoveredBlock('cache')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('cache')">
+          <rect x="${startX}" y="${cTop}" width="${innerW}" height="${cH}" rx="6" fill="${cSt.fill}" stroke="${cSt.stroke}" stroke-width="1.6" />
+          <text x="${dieX + dieW / 2}" y="${cTop + 19}" text-anchor="middle" fill="${cSt.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+            CACHÉ L1/L2/L3 (${chipConfig.cacheMB} MB) • Uso ${Math.round(m.cacheLoad)}% (Miss ${Math.round(m.cacheMissRate)}%)
+          </text>
+        </g>
+      `;
+
+      // 5. Capa 4: GPU + SIMD y NPU
+      const accTop = cTop + cH + 6;
+      const accH = (dieY + dieH - 8) - accTop;
+      const gpuW = Math.round(innerW * 0.56);
+      const npuW = innerW - gpuW - 6;
+
+      if (chipConfig.hasGpu) {
+        const gSt = getThermalInteriorStyle(m.gpuLoad, m.tempC * 0.9, LAYER_COLORS.layer4.hex);
+        html += `
+          <g class="cursor-pointer ${gSt.hotClass}" onmouseenter="setHoveredBlock('gpu')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('gpu')">
+            <rect x="${startX}" y="${accTop}" width="${gpuW}" height="${accH}" rx="6" fill="${gSt.fill}" stroke="${gSt.stroke}" stroke-width="1.6" />
+            <text x="${startX + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="${gSt.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+              GPU + SIMD • ${Math.round(m.gpuLoad)}%
+            </text>
+          </g>
+        `;
+      } else {
+        html += `
+          <rect x="${startX}" y="${accTop}" width="${gpuW}" height="${accH}" rx="6" fill="rgba(9, 10, 13, 0.5)" stroke="#1c222e" stroke-dasharray="4 4" />
+          <text x="${startX + gpuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">Sin GPU + SIMD</text>
+        `;
+      }
+
+      const npuX = startX + gpuW + 6;
+      if (chipConfig.hasNpu) {
+        const nSt = getThermalInteriorStyle(m.npuLoad, 45, LAYER_COLORS.layer4.hex);
+        html += `
+          <g class="cursor-pointer" onmouseenter="setHoveredBlock('npu')" onmouseleave="setHoveredBlock(null)" onclick="setHoveredBlock('npu')">
+            <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="6" fill="${nSt.fill}" stroke="${nSt.stroke}" stroke-width="1.6" />
+            <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="${nSt.text}" font-family="JetBrains Mono" font-size="10.5" font-weight="800">
+              NPU IA • ${Math.round(m.npuLoad)}%
+            </text>
+          </g>
+        `;
+      } else {
+        html += `
+          <rect x="${npuX}" y="${accTop}" width="${npuW}" height="${accH}" rx="6" fill="rgba(9, 10, 13, 0.5)" stroke="#1c222e" stroke-dasharray="4 4" />
+          <text x="${npuX + npuW / 2}" y="${accTop + accH / 2 + 4}" text-anchor="middle" fill="#475569" font-family="Inter" font-size="10">Sin NPU IA</text>
+        `;
+      }
+
+      svg.innerHTML = html;
+
+      if (hoveredBlockKey) {
+        const tip = document.getElementById('die-block-tooltip');
+        if (!tip.classList.contains('hidden')) {
+          tip.textContent = getTooltipDescription(hoveredBlockKey);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 5. FÍSICA REALISTA DE SIMULACIÓN (ARQUITECTURA VS. CARGA EN VIVO)
+    // =========================================================================
+    function updateSimulationPhysics(dt) {
+      const hdMult = workload.hdMode ? 1.55 : 1.0;
+      const graphicsDemand = workload.sonicCount * 6.8 * hdMult;
+      const branchDemand = 12 + workload.spikeCount * 5.8;
+      const memoryFootprintMB = (workload.sonicCount * 0.35) + (workload.hdMode ? 14.0 : 1.5) + (workload.greenHillAi ? 3.5 : 0);
+      const aiDemand = workload.greenHillAi ? 70 : 0;
+      const bgDemand = workload.bgApps ? 36 : 0;
+
+      // Fallos de predicción de saltos (Predictor Estático vs Dinámico 2-bits)
+      let branchMissRate = chipConfig.predictor === 'dynamic'
+        ? (2.5 + workload.spikeCount * 0.42)
+        : (10.5 + workload.spikeCount * 2.45);
+      branchMissRate = Math.min(54, branchMissRate);
+
+      // Fallos de Caché L1/L2/L3 (Muro de Memoria)
+      const cacheRatio = memoryFootprintMB / chipConfig.cacheMB;
+      let cacheMissRate = Math.max(2, Math.min(55, (cacheRatio - 0.52) * 26));
+      const cacheLoad = Math.min(100, Math.max(12, cacheRatio * 56));
+
+      // Cálculo de IPC Real (Superescalar + OoO + SMT - Penalizaciones)
+      let baseIpc = chipConfig.superscalar === 4 ? 3.10 : (chipConfig.superscalar === 2 ? 1.92 : 0.96);
+      if (chipConfig.ooo) baseIpc += 0.55;
+      else baseIpc -= 0.16;
+      if (chipConfig.smt) baseIpc += 0.25;
+
+      const branchEfficiency = 1 - (branchMissRate / 100) * (chipConfig.ooo ? 0.52 : 0.94);
+      const memoryEfficiency = 1 - (cacheMissRate / 100) * (chipConfig.ooo ? 0.48 : 0.88);
+      const ipc = Math.max(0.42, baseIpc * branchEfficiency * memoryEfficiency);
+
+      // Enrutamiento de tareas a Aceleradores o P-Cores
+      let gpuLoad = 0;
+      let pCoreGraphicsLoad = 0;
+      if (chipConfig.hasGpu) {
+        gpuLoad = Math.min(100, (graphicsDemand / 245) * 100);
+        pCoreGraphicsLoad = graphicsDemand * 0.12;
+      } else {
+        gpuLoad = 0;
+        pCoreGraphicsLoad = graphicsDemand * 1.18;
+      }
+
+      let npuLoad = 0;
+      let pCoreAiLoad = 0;
+      if (workload.greenHillAi) {
+        if (chipConfig.hasNpu) {
+          npuLoad = 66;
+          pCoreAiLoad = 6;
+        } else {
+          npuLoad = 0;
+          pCoreAiLoad = 78;
+        }
+      }
+
+      let eCoreAvgLoad = 0;
+      let pCoreBgLoad = 0;
+      if (workload.bgApps) {
+        if (chipConfig.eCores > 0) {
+          eCoreAvgLoad = Math.min(95, 22 + (bgDemand / chipConfig.eCores) * 2.1);
+          pCoreBgLoad = 4;
+        } else {
+          pCoreBgLoad = 48;
+        }
+      } else if (chipConfig.eCores > 0) {
+        eCoreAvgLoad = 8;
+      }
+
+      // Thermal Throttling (>95°C)
+      if (liveMetrics.tempC >= 95.5) liveMetrics.throttled = true;
+      else if (liveMetrics.tempC <= 88.0) liveMetrics.throttled = false;
+
+      const effectiveGhz = liveMetrics.throttled
+        ? Math.min(chipConfig.ghz, 2.25)
+        : chipConfig.ghz;
+
+      // Carga sobre P-Cores (SMT mejora el aprovechamiento multihilo)
+      const smtCapacityFactor = chipConfig.smt ? 1.18 : 1.0;
+      const totalPCoreWork = pCoreGraphicsLoad + pCoreAiLoad + pCoreBgLoad + branchDemand * 0.55 + 16;
+      const pCoreCapacity = chipConfig.pCores * (effectiveGhz / 3.0) * (ipc / 1.5) * 42 * smtCapacityFactor;
+      const avgPCoreLoad = Math.min(100, Math.max(8, (totalPCoreWork / pCoreCapacity) * 100));
+
+      const pCoreLoads = Array.from({ length: chipConfig.pCores }, (_, i) => {
+        const jitter = Math.sin(performance.now() * 0.004 + i * 1.7) * 3.2;
+        return Math.min(100, Math.max(5, avgPCoreLoad + jitter - i * 1.4));
+      });
+
+      const eCoreLoads = Array.from({ length: chipConfig.eCores }, (_, i) => {
+        const jitter = Math.cos(performance.now() * 0.003 + i * 2.1) * 2.8;
+        return Math.min(100, Math.max(4, eCoreAvgLoad + jitter));
+      });
+
+      const frontEndLoad = Math.min(100, Math.max(15, (branchDemand * 0.72) + avgPCoreLoad * 0.34));
+
+      // Consumo energético en Watts
+      const freqFactor = Math.pow(effectiveGhz / 3.0, 2.45);
+      const pWatts = chipConfig.pCores * (6 + (avgPCoreLoad / 100) * 16) * freqFactor;
+      const eWatts = chipConfig.eCores * (1.2 + (eCoreAvgLoad / 100) * 2.8);
+      const gpuWatts = chipConfig.hasGpu ? (4 + (gpuLoad / 100) * 16) : 0;
+      const npuWatts = chipConfig.hasNpu ? (1.5 + (npuLoad / 100) * 4.5) : 0;
+      const cacheWatts = chipConfig.cacheMB * 0.18;
+
+      const totalWatts = Math.round(pWatts + eWatts + gpuWatts + npuWatts + cacheWatts);
+
+      // Temperatura con inercia térmica
+      const targetTempC = Math.min(104, 30 + totalWatts * 0.68);
+      const thermalRate = targetTempC > liveMetrics.tempC ? 0.55 : 0.42;
+      const newTempC = liveMetrics.tempC + (targetTempC - liveMetrics.tempC) * Math.min(1, dt * thermalRate * 2.4);
+
+      // Cálculo de FPS real
+      const rawThroughput = (chipConfig.pCores * 26 * smtCapacityFactor + (chipConfig.hasGpu ? 148 : 0))
+        * (effectiveGhz / 3.2)
+        * (ipc / 2.2);
+
+      const totalFrameCost = 14 + graphicsDemand * 0.62 + (workload.greenHillAi && !chipConfig.hasNpu ? 58 : 0) + (workload.bgApps && chipConfig.eCores === 0 ? 28 : 0);
+      let computedFps = (rawThroughput / totalFrameCost) * 62;
+
+      if (cacheMissRate > 16) {
+        computedFps *= Math.max(0.32, 1 - (cacheMissRate - 16) / 65);
+      }
+      if (liveMetrics.throttled) {
+        computedFps *= 0.52;
+      }
+
+      const fps = Math.max(7, Math.min(120, Math.round(computedFps)));
+
+      // Alertas de diagnóstico
+      const alerts = [];
+      if (liveMetrics.throttled || newTempC >= 95) {
+        alerts.push({
+          type: 'danger',
+          text: `🔥 GENERACIÓN DE CALOR / THROTTLING (${Math.round(newTempC)}°C): Frecuencia recortada a ${effectiveGhz.toFixed(2)} GHz para proteger el silicio.`
+        });
+      }
+      if (cacheMissRate >= 18) {
+        alerts.push({
+          type: 'indigo',
+          text: `🧱 MURO DE MEMORIA: Caché L1/L2/L3 de ${chipConfig.cacheMB} MB saturada (${Math.round(cacheMissRate)}% fallos) con Texturas HD.`
+        });
+      }
+      if (branchMissRate >= 18) {
+        alerts.push({
+          type: 'blue',
+          text: `🔀 PENALIZACIÓN DE SALTOS: ${workload.spikeCount} pinchos provocan ${Math.round(branchMissRate)}% fallos en el predictor estático.`
+        });
+      }
+      if (avgPCoreLoad >= 86 && (!chipConfig.hasGpu || (!chipConfig.hasNpu && workload.greenHillAi))) {
+        alerts.push({
+          type: 'violet',
+          text: `⚠️ SATURACIÓN DE P-CORES (${Math.round(avgPCoreLoad)}%): Ejecutando gráficos/IA en CPU general por falta de GPU/NPU.`
+        });
+      }
+      if (alerts.length === 0) {
+        alerts.push({
+          type: 'ok',
+          text: `✅ ARQUITECTURA EQUILIBRADA: Núcleos híbridos, Caché y aceleradores operando con baja temperatura (${Math.round(newTempC)}°C).`
+        });
+      }
+
+      liveMetrics = {
+        fps,
+        tempC: newTempC,
+        watts: totalWatts,
+        ipc,
+        effectiveGhz,
+        throttled: liveMetrics.throttled,
+        pCoreLoads,
+        eCoreLoads,
+        cacheLoad,
+        cacheMissRate,
+        frontEndLoad,
+        branchMissRate,
+        gpuLoad,
+        npuLoad,
+        alerts
+      };
+    }
+
+    function updateTelemetryDOM() {
+      const m = liveMetrics;
+
+      // HUD sobre el Canvas
+      const fpsVal = document.getElementById('hud-fps-val');
+      const flBadge = document.getElementById('hud-fluidity-badge');
+      fpsVal.textContent = m.fps;
+      document.getElementById('hud-load-summary').textContent = `${workload.sonicCount} Sonics • ${workload.spikeCount} Pinchos`;
+      document.getElementById('hud-sonic-mode').textContent = workload.hdMode ? 'SONIC MODERNO (HD 3D)' : 'SONIC MANIA (PIXEL)';
+
+      if (m.fps >= 55) {
+        fpsVal.className = 'font-mono text-xl sm:text-2xl font-black text-[#38bdf8]';
+        flBadge.className = 'px-2.5 py-1.5 rounded-xl bg-[#090a0d]/92 backdrop-blur-md border border-[#38bdf8]/50 font-mono text-xs font-extrabold text-[#38bdf8] shadow-lg';
+        flBadge.textContent = 'FLUIDO';
+      } else if (m.fps >= 28) {
+        fpsVal.className = 'font-mono text-xl sm:text-2xl font-black text-indigo-300';
+        flBadge.className = 'px-2.5 py-1.5 rounded-xl bg-[#090a0d]/92 backdrop-blur-md border border-indigo-400/50 font-mono text-xs font-extrabold text-indigo-300 shadow-lg';
+        flBadge.textContent = 'JUGABLE';
+      } else {
+        fpsVal.className = 'font-mono text-xl sm:text-2xl font-black text-red-400';
+        flBadge.className = 'px-2.5 py-1.5 rounded-xl bg-[#090a0d]/92 backdrop-blur-md border border-red-500/70 font-mono text-xs font-extrabold text-red-400 shadow-lg';
+        flBadge.textContent = m.throttled ? 'CONGELADO' : 'LAG SEVERO';
+      }
+
+      document.getElementById('hud-throttle-overlay').classList.toggle('hidden', !m.throttled);
+
+      // Medidores de Telemetría Derecha
+      const tempInt = Math.round(m.tempC);
+      const tempValEl = document.getElementById('tel-temp-val');
+      const tempBarEl = document.getElementById('tel-temp-bar');
+      tempValEl.textContent = `${tempInt} °C`;
+      const tempPct = Math.min(100, Math.max(5, ((m.tempC - 28) / (105 - 28)) * 100));
+      tempBarEl.style.width = `${tempPct}%`;
+
+      if (tempInt >= 92) {
+        tempValEl.className = 'font-mono text-xl sm:text-2xl font-black text-red-400 mt-0.5';
+        tempBarEl.className = 'h-full bg-red-500 transition-all duration-200';
+      } else if (tempInt >= 72) {
+        tempValEl.className = 'font-mono text-xl sm:text-2xl font-black text-violet-300 mt-0.5';
+        tempBarEl.className = 'h-full bg-[#8b5cf6] transition-all duration-200';
+      } else {
+        tempValEl.className = 'font-mono text-xl sm:text-2xl font-black text-[#38bdf8] mt-0.5';
+        tempBarEl.className = 'h-full bg-[#38bdf8] transition-all duration-200';
+      }
+
+      document.getElementById('tel-watts-val').textContent = `${m.watts} W`;
+      document.getElementById('tel-watts-sub').textContent = m.watts > 95 ? 'Consumo Alto' : 'Potencia Activa';
+
+      document.getElementById('tel-ipc-val').textContent = m.ipc.toFixed(2);
+      document.getElementById('tel-ipc-sub').textContent = `Máx ${chipConfig.superscalar}.00 vías`;
+
+      const ghzEl = document.getElementById('tel-ghz-val');
+      const ghzSub = document.getElementById('tel-ghz-sub');
+      ghzEl.textContent = `${m.effectiveGhz.toFixed(2)} GHz`;
+      if (m.throttled) {
+        ghzEl.className = 'font-mono text-xl sm:text-2xl font-black text-red-400 mt-0.5';
+        ghzSub.className = 'text-[10px] font-mono font-bold text-red-400 mt-1';
+        ghzSub.textContent = `Recortado (${chipConfig.ghz.toFixed(1)})`;
+      } else {
+        ghzEl.className = 'font-mono text-xl sm:text-2xl font-black text-white mt-0.5';
+        ghzSub.className = 'text-[10px] font-mono text-[#38bdf8] mt-1';
+        ghzSub.textContent = '100% Frecuencia';
+      }
+
+      // Renderizar Píldoras de Alertas
+      const alertsEl = document.getElementById('alerts-container');
+      alertsEl.innerHTML = m.alerts.map(a => {
+        const styles = {
+          danger: 'bg-red-950/75 border-red-500 text-red-200 thermal-alert-pulse',
+          indigo: 'bg-[#6366f1]/15 border-[#6366f1]/60 text-indigo-200',
+          blue: 'bg-[#3b82f6]/15 border-[#3b82f6]/60 text-blue-200',
+          violet: 'bg-[#8b5cf6]/15 border-[#8b5cf6]/60 text-violet-200',
+          ok: 'bg-[#38bdf8]/10 border-[#38bdf8]/40 text-sky-200'
+        };
+        return `
+          <div class="px-3.5 py-2.5 rounded-xl border text-xs font-bold leading-snug ${styles[a.type]}">
+            ${a.text}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 6. CONTROLES DE CARGA EN VIVO (PANEL IZQUIERDO)
+    // =========================================================================
+    function onWorkloadChange(key, value) {
+      workload[key] = value;
+      syncWorkloadUI();
+      syncGameEntities();
+      updateSimulationPhysics(0.2);
+      updateTelemetryDOM();
+      renderLiveDieSvg();
+    }
+
+    function resetWorkload() {
+      workload = {
+        sonicCount: 6,
+        spikeCount: 3,
+        hdMode: false,
+        greenHillAi: false,
+        bgApps: false
+      };
+      syncWorkloadUI();
+      syncGameEntities();
+      showToast('Carga de la arena restablecida');
+    }
+
+    function syncWorkloadUI() {
+      document.getElementById('slider-load-sonics').value = workload.sonicCount;
+      document.getElementById('lbl-load-sonics').textContent = `${workload.sonicCount} ${workload.sonicCount === 1 ? 'Sonic' : 'Sonics'}`;
+
+      document.getElementById('slider-load-spikes').value = workload.spikeCount;
+      document.getElementById('lbl-load-spikes').textContent = `${workload.spikeCount} ${workload.spikeCount === 1 ? 'pincho' : 'pinchos'}`;
+
+      const setToggleVisual = (btnId, badgeId, active, activeClass, extraPrefix = '') => {
+        const btn = document.getElementById(btnId);
+        const badge = document.getElementById(badgeId);
+        badge.textContent = active ? 'ON' : 'OFF';
+        btn.className = active
+          ? `${extraPrefix} p-2.5 rounded-xl border text-left transition-all ${activeClass} flex items-center justify-between`
+          : `${extraPrefix} p-2.5 rounded-xl border text-left transition-all bg-[#090a0d] border-[#1c222e] hover:border-[#38bdf8]/50 flex items-center justify-between`;
+        badge.className = active
+          ? 'font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#38bdf8] text-slate-950'
+          : 'font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#141923] text-slate-400';
+      };
+
+      setToggleVisual('btn-load-hd', 'badge-load-hd', workload.hdMode, 'bg-[#6366f1]/20 border-[#6366f1]/70');
+      setToggleVisual('btn-load-greenhill', 'badge-load-greenhill', workload.greenHillAi, 'bg-[#38bdf8]/20 border-[#38bdf8]/70', 'relative overflow-hidden');
+      setToggleVisual('btn-load-bgapps', 'badge-load-bgapps', workload.bgApps, 'bg-[#38bdf8]/20 border-[#38bdf8]/70', 'relative overflow-hidden');
+    }
+
+    // =========================================================================
+    // 7. MOTOR GRÁFICO SONIC: MANIA PIXEL-ART, MODERNO HD, PINCHOS, GREEN HILL Y "2DO PLANO"
+    // =========================================================================
+    const gameCanvas = document.getElementById('game-canvas');
+    const gameCtx = gameCanvas.getContext('2d');
+
+    // Buffer offscreen de sprite pixel-art de Sonic Clásico (Sonic Mania 16x18)
+    const maniaSpriteCanvas = document.createElement('canvas');
+    maniaSpriteCanvas.width = 16;
+    maniaSpriteCanvas.height = 18;
+    const maniaCtx = maniaSpriteCanvas.getContext('2d');
+
+    (function buildSonicManiaSprite() {
+      const palette = {
+        '.': null,
+        'B': '#0284c7', // Azul profundo contorno/sombra
+        'S': '#1ea7fd', // Azul cielo vibrante Sonic Mania
+        'L': '#7dd3fc', // Brillo azul claro púas
+        'P': '#fed7aa', // Durazno hocico/barriga/brazos
+        'W': '#ffffff', // Blanco ojos y guantes
+        'K': '#0f172a', // Pupila / nariz negra
+        'R': '#ef4444', // Rojo zapatillas
+        'G': '#facc15'  // Hebilla dorada
+      };
+      const rows = [
+        '....BBBB........',
+        '..BBSSSSBB......',
+        '.BSSLSSSSSB.....',
+        'BBSSSSSSSSBB....',
+        'BSSSSSSWWKSB....',
+        '.BBSSSSWWKSK....',
+        '..BSSSSPPPPB....',
+        '.BBSSSPPPPPB....',
+        'BSSSSBPPPPP.....',
+        '.BB..BPPPPP.....',
+        '....WWBPPPBWW...',
+        '....WWBBBB.WW...',
+        '......B..B......',
+        '......B..B......',
+        '.....WW..WW.....',
+        '....RRRWWWRR....',
+        '...RRRRGRRRRR...',
+        '...BBBBBBBBBB...'
+      ];
+      for (let y = 0; y < rows.length; y++) {
+        for (let x = 0; x < rows[y].length; x++) {
+          const color = palette[rows[y][x]];
+          if (color) {
+            maniaCtx.fillStyle = color;
+            maniaCtx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+    })();
+
+    // Dibuja a Sonic Moderno en alta definición (HD 3D-shaded)
+    function drawSonic(ctx, x, y, vx, isHD) {
+  const sprite = isHD ? imgSonicModerno : imgSonicClasico;
+  const size = isHD ? 54 : 44; // Sonic Moderno un poco más grande para destacar el HD
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (vx < 0) ctx.scale(-1, 1); // Voltea el sprite si va hacia la izquierda
+
+  if (sprite.complete && sprite.naturalWidth > 0) {
+    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+  }
+  ctx.restore();
+}
+
+    // Dibuja una trampa / esfera de pinchos metálicos clásica de Sonic
+    function drawSonicSpikeHazard(ctx, x, y, angle) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      const coreR = 10;
+      const spikeLen = 10;
+      const numSpikes = 8;
+
+      // 8 Púas metálicas triangulares
+      for (let i = 0; i < numSpikes; i++) {
+        const a = (i / numSpikes) * Math.PI * 2;
+        ctx.save();
+        ctx.rotate(a);
+
+        const spGrad = ctx.createLinearGradient(0, -4, 0, 4);
+        spGrad.addColorStop(0, '#f8fafc');
+        spGrad.addColorStop(0.5, '#94a3b8');
+        spGrad.addColorStop(1, '#334155');
+
+        ctx.fillStyle = spGrad;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(coreR - 2, -4.2);
+        ctx.lineTo(coreR + spikeLen, 0);
+        ctx.lineTo(coreR - 2, 4.2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Esfera metálica central con reflejo especular
+      const ballGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, coreR);
+      ballGrad.addColorStop(0, '#f1f5f9');
+      ballGrad.addColorStop(0.45, '#64748b');
+      ballGrad.addColorStop(1, '#1e293b');
+      ctx.fillStyle = ballGrad;
+      ctx.strokeStyle = '#090a0d';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Dibuja el escenario detallado de Green Hill Zone cuando Filtro IA está activo
+    function drawGreenHillBackground(ctx, w, h, timeSec) {
+      if (imgGreenHill.complete && imgGreenHill.naturalWidth > 0) {
+  ctx.drawImage(imgGreenHill, 0, 0, canvas.width, canvas.height);
+}
+    }
+
+    // Dibuja ventanas emergentes animadas que dicen textualmente "2do plano"
+    function drawBackgroundPopups(ctx, popups, isDarkBg) {
+      popups.forEach(win => {
+        ctx.save();
+        ctx.translate(win.x, win.y);
+
+        const w = 136;
+        const h = 58;
+
+        // Sombra suave
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.beginPath();
+        ctx.roundRect(3, 4, w, h, 8);
+        ctx.fill();
+
+        // Cuerpo de la ventana emergente
+        ctx.fillStyle = isDarkBg ? '#090a0d' : '#f8fafc';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, w, h, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Barra superior de ventana
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.roundRect(0, 0, w, 17, [8, 8, 0, 0]);
+        ctx.fill();
+
+        // 3 puntitos de ventana
+        ['#38bdf8', '#6366f1', '#8b5cf6'].forEach((c, idx) => {
+          ctx.fillStyle = c;
+          ctx.beginPath();
+          ctx.arc(10 + idx * 8, 8.5, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Texto explícito "2do plano"
+        ctx.fillStyle = isDarkBg ? '#f8fafc' : '#090a0d';
+        ctx.font = '800 13px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('2do plano', w / 2, 36);
+
+        // Barra de progreso animada
+        ctx.fillStyle = isDarkBg ? '#1e293b' : '#e2e8f0';
+        ctx.fillRect(14, 44, w - 28, 5);
+        ctx.fillStyle = '#38bdf8';
+        const barW = (w - 28) * (0.35 + 0.65 * ((Math.sin(win.phase) + 1) / 2));
+        ctx.fillRect(14, 44, barW, 5);
+
+        ctx.restore();
+      });
+    }
+
+    // Estado del mundo Sonic
+    let sonicArena = {
+      width: 600,
+      height: 345,
+      sonics: [],
+      spikes: [],
+      rings: [],
+      popups: [],
+      boostTimer: 0
+    };
+
+    function createSonicEntity() {
+      return {
+        x: 0.1 + Math.random() * 0.8,
+        y: 0.25 + Math.random() * 0.55,
+        vx: (Math.random() > 0.5 ? 1 : -1) * (0.24 + Math.random() * 0.18),
+        vy: (Math.random() - 0.5) * 0.16,
+        dir: Math.random() > 0.5 ? 1 : -1,
+        runPhase: Math.random() * Math.PI * 2,
+        dodgeCooldown: 0
+      };
+    }
+
+    function createSpikeEntity() {
+      return {
+        x: 0.12 + Math.random() * 0.76,
+        y: 0.24 + Math.random() * 0.56,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: (Math.random() - 0.5) * 0.20,
+        angle: Math.random() * Math.PI * 2
+      };
+    }
+
+    function syncGameEntities() {
+      while (sonicArena.sonics.length < workload.sonicCount) {
+        sonicArena.sonics.push(createSonicEntity());
+      }
+      if (sonicArena.sonics.length > workload.sonicCount) {
+        sonicArena.sonics.length = workload.sonicCount;
+      }
+
+      while (sonicArena.spikes.length < workload.spikeCount) {
+        sonicArena.spikes.push(createSpikeEntity());
+      }
+      if (sonicArena.spikes.length > workload.spikeCount) {
+        sonicArena.spikes.length = workload.spikeCount;
+      }
+
+      if (workload.bgApps && sonicArena.popups.length === 0) {
+        sonicArena.popups = [
+          { x: 36, y: 65, vx: 38, vy: 24, phase: 0.3 },
+          { x: 240, y: 120, vx: -32, vy: 28, phase: 1.7 },
+          { x: 140, y: 210, vx: 29, vy: -26, phase: 3.1 }
+        ];
+      } else if (!workload.bgApps) {
+        sonicArena.popups = [];
+      }
+    }
+
+    // Clic / Toque en la arena: lluvia de Rings dorados + impulso de velocidad
+    function spawnRingBurst(clientX, clientY) {
+      const rect = gameCanvas.getBoundingClientRect();
+      const cx = clientX - rect.left;
+      const cy = clientY - rect.top;
+      sonicArena.boostTimer = 1.6;
+
+      for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 2;
+        const spd = 85 + Math.random() * 95;
+        sonicArena.rings.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - 45,
+          life: 1.15,
+          spin: Math.random() * Math.PI
+        });
+      }
+    }
+
+    gameCanvas.addEventListener('mousedown', (e) => spawnRingBurst(e.clientX, e.clientY));
+    gameCanvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) spawnRingBurst(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    function stepSonicArena(dt) {
+      const w = sonicArena.width;
+      const h = sonicArena.height;
+      const boostMult = sonicArena.boostTimer > 0 ? 1.65 : 1.0;
+      if (sonicArena.boostTimer > 0) sonicArena.boostTimer -= dt;
+
+      // Actualizar pinchos
+      sonicArena.spikes.forEach(sp => {
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        sp.angle += dt * 2.4;
+        if (sp.x < 0.08 || sp.x > 0.92) sp.vx *= -1;
+        if (sp.y < 0.20 || sp.y > 0.82) sp.vy *= -1;
+      });
+
+      // Actualizar Sonics + detección de pinchos (saltos condicionales)
+      sonicArena.sonics.forEach(s => {
+        if (s.dodgeCooldown > 0) s.dodgeCooldown -= dt;
+
+        // Comprobar cercanía a pinchos para esquivar
+        if (s.dodgeCooldown <= 0) {
+          for (let i = 0; i < sonicArena.spikes.length; i++) {
+            const sp = sonicArena.spikes[i];
+            const dx = s.x - sp.x;
+            const dy = s.y - sp.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 0.13) {
+              s.vx = (dx >= 0 ? 1 : -1) * (0.28 + Math.random() * 0.15);
+              s.vy = (dy >= 0 ? 1 : -1) * (0.22 + Math.random() * 0.12);
+              s.dodgeCooldown = 0.35;
+              break;
+            }
+          }
+        }
+
+        s.x += s.vx * boostMult * dt;
+        s.y += s.vy * boostMult * dt;
+        s.runPhase += dt * 13 * boostMult;
+
+        if (s.x < 0.06) { s.x = 0.06; s.vx = Math.abs(s.vx); }
+        if (s.x > 0.94) { s.x = 0.94; s.vx = -Math.abs(s.vx); }
+        if (s.y < 0.20) { s.y = 0.20; s.vy = Math.abs(s.vy); }
+        if (s.y > 0.80) { s.y = 0.80; s.vy = -Math.abs(s.vy); }
+
+        s.dir = s.vx >= 0 ? 1 : -1;
+      });
+
+      // Actualizar ventanas emergentes "2do plano"
+      sonicArena.popups.forEach(win => {
+        win.x += win.vx * dt;
+        win.y += win.vy * dt;
+        win.phase += dt * 3.5;
+        if (win.x < 10 || win.x > w - 146) win.vx *= -1;
+        if (win.y < 46 || win.y > h - 68) win.vy *= -1;
+      });
+
+      // Actualizar anillos dorados (Rings)
+      for (let i = sonicArena.rings.length - 1; i >= 0; i--) {
+        const r = sonicArena.rings[i];
+        r.x += r.vx * dt;
+        r.y += r.vy * dt;
+        r.vy += 240 * dt; // gravedad suave
+        r.spin += dt * 9;
+        r.life -= dt;
+        if (r.life <= 0) sonicArena.rings.splice(i, 1);
+      }
+    }
+
+    function renderSonicArena() {
+      const w = sonicArena.width;
+      const h = sonicArena.height;
+      const ctx = gameCtx;
+      const nowSec = performance.now() * 0.001;
+
+      if (workload.greenHillAi) {
+        drawGreenHillBackground(ctx, w, h, nowSec);
+      } else {
+        // Fondo blanco puro (#ffffff) con línea de suelo gris claro sutil
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+
+        const groundY = h * 0.84;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(w, groundY);
+        ctx.stroke();
+
+        // Pequeñas marcas sutiles en el suelo blanco para sensación de velocidad
+        ctx.fillStyle = '#f1f5f9';
+        const scroll = (nowSec * 90) % 40;
+        for (let gx = -scroll; gx < w; gx += 40) {
+          ctx.fillRect(gx, groundY + 6, 20, 3);
+        }
+      }
+
+      // Dibujar Pinchos Metálicos
+      sonicArena.spikes.forEach(sp => {
+        drawSonicSpikeHazard(ctx, sp.x * w, sp.y * h, sp.angle);
+      });
+
+      // Dibujar Sonics (Mania Pixel-Art vs Moderno HD 3D)
+      sonicArena.sonics.forEach(s => {
+        const sx = s.x * w;
+        const sy = s.y * h;
+
+        // Sombra suave bajo cada Sonic
+        ctx.fillStyle = workload.greenHillAi ? 'rgba(0, 0, 0, 0.28)' : 'rgba(15, 23, 42, 0.12)';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + 21, 13, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (workload.hdMode) {
+          drawModernSonicHD(ctx, sx, sy, s.dir, s.runPhase, 1.05);
+        } else {
+          // Sprite Pixel-Art de Sonic Mania nítido (sin suavizado)
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          const bob = Math.sin(s.runPhase * 2) * 2.5;
+          ctx.translate(sx, sy + bob);
+          ctx.scale(s.dir, 1);
+          const drawW = 36;
+          const drawH = 40;
+          ctx.drawImage(maniaSpriteCanvas, -drawW / 2, -drawH / 2, drawW, drawH);
+          ctx.restore();
+        }
+      });
+
+      // Dibujar Rings dorados al hacer clic
+      sonicArena.rings.forEach(r => {
+        ctx.save();
+        ctx.translate(r.x, r.y);
+        const rx = Math.max(2.5, Math.abs(Math.cos(r.spin)) * 7);
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, 7, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Dibujar ventanas emergentes "2do plano" si Apps 2do Plano está activo
+      if (workload.bgApps) {
+        drawBackgroundPopups(ctx, sonicArena.popups, workload.greenHillAi);
+      }
+    }
+
+    // =========================================================================
+    // 8. GRÁFICA DE TELEMETRÍA HISTÓRICA (FPS VS TEMPERATURA)
+    // =========================================================================
+    const chartCanvas = document.getElementById('telemetry-chart-canvas');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    function renderTelemetryChart() {
+      const rect = chartCanvas.parentElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      if (chartCanvas.width !== Math.round(rect.width * dpr) || chartCanvas.height !== Math.round(rect.height * dpr)) {
+        chartCanvas.width = Math.round(rect.width * dpr);
+        chartCanvas.height = Math.round(rect.height * dpr);
+      }
+
+      const w = rect.width;
+      const h = rect.height;
+      chartCtx.save();
+      chartCtx.scale(dpr, dpr);
+      chartCtx.clearRect(0, 0, w, h);
+
+      chartCtx.strokeStyle = 'rgba(28, 34, 46, 0.85)';
+      chartCtx.lineWidth = 1;
+      [0.25, 0.5, 0.75].forEach(ratio => {
+        chartCtx.beginPath();
+        chartCtx.moveTo(0, h * ratio);
+        chartCtx.lineTo(w, h * ratio);
+        chartCtx.stroke();
+      });
+
+      const drawSeries = (arr, maxVal, color) => {
+        chartCtx.beginPath();
+        chartCtx.strokeStyle = color;
+        chartCtx.lineWidth = 2.2;
+        arr.forEach((val, idx) => {
+          const x = (idx / (HISTORY_LEN - 1)) * w;
+          const norm = Math.max(0, Math.min(1, val / maxVal));
+          const y = h - 6 - norm * (h - 12);
+          if (idx === 0) chartCtx.moveTo(x, y);
+          else chartCtx.lineTo(x, y);
+        });
+        chartCtx.stroke();
+      };
+
+      drawSeries(telemetryHistory.fps, 120, '#38bdf8');  // FPS en Azul Claro
+      drawSeries(telemetryHistory.temp, 110, '#ef4444'); // Temp en Rojo
+
+      chartCtx.restore();
+    }
+
+    // =========================================================================
+    // 9. CAMBIO DE VISTA Y BUCLE PRINCIPAL DE ANIMACIÓN
+    // =========================================================================
+    function switchMainView(viewNum) {
+      activeView = viewNum;
+      const v1 = document.getElementById('view-builder');
+      const v2 = document.getElementById('view-live');
+      const b1 = document.getElementById('nav-btn-1');
+      const b2 = document.getElementById('nav-btn-2');
+
+      if (viewNum === 1) {
+        v1.classList.remove('hidden');
+        v2.classList.add('hidden');
+        b1.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-[#38bdf8] text-slate-950 shadow-md';
+        b2.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-300 hover:text-white';
+        syncBuilderUI();
+      } else {
+        v1.classList.add('hidden');
+        v2.classList.remove('hidden');
+        b2.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-[#38bdf8] text-slate-950 shadow-md';
+        b1.className = 'flex-1 lg:flex-initial px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-300 hover:text-white';
+        resizeGameCanvas();
+        updateSimulationPhysics(0.1);
+        updateTelemetryDOM();
+        renderLiveDieSvg();
+        renderTelemetryChart();
+      }
+    }
+
+    function resizeGameCanvas() {
+      const wrapper = document.getElementById('game-canvas-wrapper');
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const dpr = window.devicePixelRatio || 1;
+      gameCanvas.width = Math.round(rect.width * dpr);
+      gameCanvas.height = Math.round(rect.height * dpr);
+      gameCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sonicArena.width = rect.width;
+      sonicArena.height = rect.height;
+    }
+
+    window.addEventListener('resize', () => {
+      if (activeView === 2) {
+        resizeGameCanvas();
+        renderTelemetryChart();
+      }
+    });
+
+    let lastTimestamp = 0;
+    let gameRenderAccumulator = 0;
+    let telemetrySampleAccumulator = 0;
+
+    function mainAnimationLoop(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const rawDt = Math.min(0.1, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      if (activeView === 2) {
+        updateSimulationPhysics(rawDt);
+
+        const targetFrameInterval = 1 / Math.max(5, liveMetrics.fps);
+        gameRenderAccumulator += rawDt;
+
+        if (gameRenderAccumulator >= targetFrameInterval) {
+          stepSonicArena(gameRenderAccumulator);
+          renderSonicArena();
+          gameRenderAccumulator = 0;
+        }
+
+        telemetrySampleAccumulator += rawDt;
+        if (telemetrySampleAccumulator >= 0.5) {
+          telemetrySampleAccumulator = 0;
+          telemetryHistory.fps.push(liveMetrics.fps);
+          telemetryHistory.fps.shift();
+          telemetryHistory.temp.push(liveMetrics.tempC);
+          telemetryHistory.temp.shift();
+
+          updateTelemetryDOM();
+          renderLiveDieSvg();
+          renderTelemetryChart();
+        }
+      }
+
+      requestAnimationFrame(mainAnimationLoop);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      syncBuilderUI();
+      syncWorkloadUI();
+      syncGameEntities();
+      updateSimulationPhysics(0.1);
+      requestAnimationFrame(mainAnimationLoop);
+    });
+  </script>
+</body>
+</html>
